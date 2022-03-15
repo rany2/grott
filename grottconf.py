@@ -601,7 +601,7 @@ class Conf:
         if os.getenv("gmode") in ("sniff", "proxy"):
             self.mode = self.getenv("gmode")
         if os.getenv("gverbose") is not None:
-            self.verbose = self.getenv("verbose")
+            self.verbose = self.getenv("gverbose")
         if os.getenv("gminrecl") is not None:
             if 0 <= int(os.getenv("gminrecl")) <= 255:
                 self.minrecl = self.getenv("gminrecl")
