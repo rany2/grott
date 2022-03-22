@@ -604,7 +604,7 @@ class Conf:
             self.verbose = self.getenv("gverbose")
         if os.getenv("gminrecl") is not None:
             if 0 <= int(os.getenv("gminrecl")) <= 255:
-                self.minrecl = self.getenv("gminrecl")
+                self.minrecl = int(self.getenv("gminrecl"))
         if os.getenv("gdecrypt") is not None:
             self.decrypt = self.getenv("gdecrypt")
         if os.getenv("gcompat") is not None:
