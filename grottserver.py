@@ -41,7 +41,7 @@ def decrypt(decdata):
 
     # Create mask and convert to hexadecimal
     mask = "Growatt"
-    hex_mask = ["{:02x}".format(ord(x)) for x in mask]
+    hex_mask = [f"{ord(x):02x}" for x in mask]
     nmask = len(hex_mask)
 
     # start decrypt routine
@@ -50,7 +50,7 @@ def decrypt(decdata):
     for i, j in zip(range(0, ndecdata - 8), cycle(range(0, nmask))):
         unscrambled = unscrambled + [decdata[i + 8] ^ int(hex_mask[j], 16)]
 
-    result_string = "".join("{:02x}".format(n) for n in unscrambled)
+    result_string = "".join(f"{n:02x}" for n in unscrambled)
 
     print("\t - " + "Grott - data decrypted V2")
     return result_string
@@ -101,16 +101,16 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
     if protocol == "06":
         body = body + "0000000000000000000000000000000000000000"
     register = 31
-    body = body + "{:04x}".format(int(register))
+    body = body + f"{int(register):04x}"
     currenttime = getcurrenttime(conf)
     timex = currenttime.encode("utf-8").hex()
-    timel = "{:04x}".format(int(len(timex) / 2))
+    timel = f"{int(len(timex) / 2):04x}"
     body = body + timel + timex
     # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
     bodylen = int(len(body) / 2 + 2)
 
     # create header
-    header = "0001" + "00" + protocol + "{:04x}".format(bodylen) + "0118"
+    header = "0001" + "00" + protocol + f"{bodylen:04x}" + "0118"
     # print(header)
     body = header + body
     body = bytes.fromhex(body)
@@ -327,17 +327,17 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
 
                 if self.loggerreg[dataloggerid]["protocol"] == "06":
                     body = body + "0000000000000000000000000000000000000000"
-                body = body + "{:04x}".format(int(register))
+                body = body + f"{int(register):04x}"
                 # assumption now only 1 reg query; other put below end register
-                body = body + "{:04x}".format(int(register))
+                body = body + f"{int(register):04x}"
                 # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
                 bodylen = int(len(body) / 2 + 2)
 
                 header = (
-                    "{:04x}".format(self.conf.sendseq)
+                    f"{self.conf.sendseq:04x}"
                     + "00"
                     + self.loggerreg[dataloggerid]["protocol"]
-                    + "{:04x}".format(bodylen)
+                    + f"{bodylen:04x}"
                     + "01"
                     + sendcommand
                 )
@@ -362,8 +362,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     + str(self.loggerreg[dataloggerid]["port"])
                 )
                 self.send_queuereg[qname].put(body)
-                responseno = "{:04x}".format(self.conf.sendseq)
-                regkey = "{:04x}".format(int(register))
+                responseno = f"{self.conf.sendseq:04x}"
+                regkey = f"{int(register):04x}"
                 try:
                     del self.commandresponse[sendcommand][regkey]
                 except:
@@ -637,22 +637,22 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     body = body + "0000000000000000000000000000000000000000"
 
                 if sendcommand == "06":
-                    value = "{:04x}".format(value)
+                    value = f"{value:04x}"
                     valuelen = ""
                 else:
                     value = value.encode("utf-8").hex()
                     valuelen = int(len(value) / 2)
-                    valuelen = "{:04x}".format(valuelen)
+                    valuelen = f"{valuelen:04x}"
 
-                body = body + "{:04x}".format(int(register)) + valuelen + value
+                body = body + f"{int(register):04x}" + valuelen + value
                 bodylen = int(len(body) / 2 + 2)
 
                 # create header
                 header = (
-                    "{:04x}".format(self.conf.sendseq)
+                    f"{self.conf.sendseq:04x}"
                     + "00"
                     + self.loggerreg[dataloggerid]["protocol"]
-                    + "{:04x}".format(bodylen)
+                    + f"{bodylen:04x}"
                     + "01"
                     + sendcommand
                 )
@@ -676,8 +676,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     + str(self.loggerreg[dataloggerid]["port"])
                 )
                 self.send_queuereg[qname].put(body)
-                responseno = "{:04x}".format(self.conf.sendseq)
-                regkey = "{:04x}".format(int(register))
+                responseno = f"{self.conf.sendseq:04x}"
+                regkey = f"{int(register):04x}"
                 try:
                     # delete response: be aware a 18 command give 19 response, 06 send command gives 06 response in differnt format!
                     if sendcommand == "18":
@@ -925,7 +925,7 @@ class sendrecvserver:
         try:
             with self.rw_mutex[fsock]:
                 fsock.send(data)
-            print("\t - Grottserver - Forward data sent for {}:{}".format(host, port))
+            print(f"\t - Grottserver - Forward data sent for {host}:{port}")
         except Exception as e:
             # print("\t - Grottserver - exception in forward_data : {} for {}:{}".format(e, host, port))
             # try to reconnect if connection is closed
@@ -1033,7 +1033,7 @@ class sendrecvserver:
                     )
 
             # Create header
-            header = "".join("{:02x}".format(n) for n in data[0:8])
+            header = "".join(f"{n:02x}" for n in data[0:8])
             protocol = header[6:8]
             sequencenumber = header[0:4]
             protocol = header[6:8]
@@ -1160,7 +1160,7 @@ class sendrecvserver:
                         result_string[44 + offset : 44 + offset + valuelen * 2], "hex"
                     ).decode("utf-8")
 
-                regkey = "{:04x}".format(register)
+                regkey = f"{register:04x}"
                 if command == "06":
                     # command 06 response has ack (result) + value. We will create a 06 response and a 05 response (for reg administration)
                     self.commandresponse["06"][regkey] = {

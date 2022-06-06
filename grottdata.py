@@ -39,7 +39,7 @@ def decrypt(decdata):
 
     # Create mask and convert to hexadecimal
     mask = "Growatt"
-    hex_mask = ["{:02x}".format(ord(x)) for x in mask]
+    hex_mask = [f"{ord(x):02x}" for x in mask]
     nmask = len(hex_mask)
 
     # start decrypt routine
@@ -48,7 +48,7 @@ def decrypt(decdata):
     for i, j in zip(range(0, ndecdata - 8), cycle(range(0, nmask))):
         unscrambled = unscrambled + [decdata[i + 8] ^ int(hex_mask[j], 16)]
 
-    result_string = "".join("{:02x}".format(n) for n in unscrambled)
+    result_string = "".join(f"{n:02x}" for n in unscrambled)
 
     print("\t - " + "Growatt data decrypted V2")
     return result_string
@@ -70,7 +70,7 @@ def procdata(conf, data):
         print("\t - " + "Growatt original Data:")
         print(format_multi_line("\t\t ", data))
 
-    header = "".join("{:02x}".format(n) for n in data[0:8])
+    header = "".join(f"{n:02x}" for n in data[0:8])
     ndata = len(data)
     buffered = "nodetect"  # set buffer detection to nodetect (for compat mode), wil in auto detection changed to no or yes
 
@@ -640,7 +640,7 @@ def procdata(conf, data):
                         keydivide = 1
 
                     if type(definedkey[key]) != type(str()) and keydivide != 1:
-                        printkey = "{:.1f}".format(definedkey[key] / keydivide)
+                        printkey = f"{definedkey[key] / keydivide:.1f}"
                     else:
                         printkey = definedkey[key]
                     print("\t\t - ", key.ljust(20) + " : ", printkey)

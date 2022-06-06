@@ -26,100 +26,53 @@ class Sniff:
             self.raw_data, self.addr = self.conn.recvfrom(65535)
             self.eth = Ethernet(self.raw_data)
             if conf.trace:
+                # fmt: off
                 print("\n" + "\t - " + "Ethernet Frame:")
-                print(
-                    "\t - "
-                    + "Destination: {}, Source: {}, Protocol: {}".format(
-                        self.eth.dest_mac, self.eth.src_mac, self.eth.proto
-                    )
-                )
+                print(f"\t - Destination: {self.eth.dest_mac}, Source: {self.eth.src_mac}, Protocol: {self.eth.proto}")
+                # fmt: on
             # IPv4
             if self.eth.proto == 8:
                 self.ipv4 = IPv4(self.eth.data)
                 if conf.trace:
+                    # fmt: off
                     print("\t - " + "IPv4 Packet protocol 8 :")
-                    print(
-                        "\t\t - "
-                        + "Version: {}, Header Length: {}, TTL: {},".format(
-                            self.ipv4.version, self.ipv4.header_length, self.ipv4.ttl
-                        )
-                    )
-                    print(
-                        "\t\t - "
-                        + "Protocol: {}, Source: {}, Target: {}".format(
-                            self.ipv4.proto, self.ipv4.src, self.ipv4.target
-                        )
-                    )
+                    print("\t\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},")
+                    print("\t\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
+                    # fmt: on
 
                 # TCP
                 # elif self.ipv4.proto == 6:
                 if self.ipv4.proto == 6:
                     self.tcp = TCP(self.ipv4.data)
                     if conf.trace:
+                        # fmt: off
                         print("\t - " + "TCP Segment protocol 6 found")
-                        print(
-                            "\t\t - "
-                            + "Source Port: {}, Destination Port: {}".format(
-                                self.tcp.src_port, self.tcp.dest_port
-                            )
-                        )
-                        print(
-                            "\t\t - "
-                            + "Source IP: {}, Destination IP: {}".format(
-                                self.ipv4.src, self.ipv4.target
-                            )
-                        )
+                        print("\t\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
+                        print("\t\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                        # fmt: on
 
                     if (
                         self.tcp.dest_port == conf.growattport
                         and self.ipv4.target == conf.growattip
                     ):
                         if conf.verbose:
+                            # fmt: off
                             print("\t - " + "TCP Segment Growatt:")
-                            print(
-                                "\t\t - "
-                                + "Source Port: {}, Destination Port: {}".format(
-                                    self.tcp.src_port, self.tcp.dest_port
-                                )
-                            )
-                            print(
-                                "\t\t - "
-                                + "Source IP: {}, Destination IP: {}".format(
-                                    self.ipv4.src, self.ipv4.target
-                                )
-                            )
-                            print(
-                                "\t\t - "
-                                + "Sequence: {}, Acknowledgment: {}".format(
-                                    self.tcp.sequence, self.tcp.acknowledgment
-                                )
-                            )
+                            print("\t\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
+                            print(f"\t\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                            print(f"\t\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}")
                             print("\t\t - " + "Flags:")
-                            print(
-                                "\t\t\t - "
-                                + "URG: {}, ACK: {}, PSH: {}".format(
-                                    self.tcp.flag_urg,
-                                    self.tcp.flag_ack,
-                                    self.tcp.flag_psh,
-                                )
-                            )
-                            print(
-                                "\t\t\t - "
-                                + "RST: {}, SYN: {}, FIN:{}".format(
-                                    self.tcp.flag_rst,
-                                    self.tcp.flag_syn,
-                                    self.tcp.flag_fin,
-                                )
-                            )
+                            print(f"\t\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}")
+                            print(f"\t\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
+                            # fmt: on
 
+                        # fmt: off
                         if len(self.tcp.data) > conf.minrecl:
                             procdata(conf, self.tcp.data)
                         else:
                             if conf.verbose:
-                                print(
-                                    "\t - "
-                                    + "Data less then minimum record length, data not processed"
-                                )
+                                print("\t - Data less then minimum record length, data not processed")
+                        # fmt: on
 
                 # Other IPv4 Not used
                 else:

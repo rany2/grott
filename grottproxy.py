@@ -141,7 +141,7 @@ class Proxy:
         print("\t - " + "Growatt packet received:")
         print("\t\t ", self.channel[self.s])
         # FILTER!!!!!!!! Detect if configure data is sent!
-        header = "".join("{:02x}".format(n) for n in data[0:8])
+        header = "".join(f"{n:02x}" for n in data[0:8])
         if conf.blockcmd:
             # standard everything is blocked!
             print("\t - " + "Growatt command block checking started")
