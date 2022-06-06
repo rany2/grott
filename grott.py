@@ -42,7 +42,7 @@ if conf.mode == "proxy":
             print("\t - no ports to close")
         sys.exit(1)
 
-if conf.mode == "sniff":
+elif conf.mode == "sniff":
     sniff = Sniff(conf)
     try:
         sniff.main(conf)
