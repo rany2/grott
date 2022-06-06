@@ -18,7 +18,8 @@ import pytz
 from grottdata import procdata as grottdata
 from grottproxy import Forward
 
-# grottserver.py emulates the server.growatt.com website and is initial developed for debugging and testing grott.
+# grottserver.py emulates the server.growatt.com website and is
+# initially developed for debugging and testing grott.
 # Updated: 2022-06-02
 # Version:
 verrel = "0.0.7"
@@ -28,7 +29,7 @@ verrel = "0.0.7"
 def format_multi_line(prefix, string, size=80):
     size -= len(prefix)
     if isinstance(string, bytes):
-        string = "".join(r"\x{:02x}".format(byte) for byte in string)
+        string = "".join(rf"\x{byte:02x}" for byte in string)
         if size % 2:
             size -= 1
     return "\n".join([prefix + line for line in textwrap.wrap(string, size)])
@@ -74,7 +75,7 @@ def htmlsendresp(self, responserc, responseheader, responsetxt):
 def getcurrenttime(conf):
     try:
         local = pytz.timezone(conf.tmzone)
-    except:
+    except Exception:
         if conf.verbose:
             if conf.tmzone == "local":
                 print("\t - " + "Timezone local specified default timezone used")
@@ -88,14 +89,10 @@ def getcurrenttime(conf):
 
     if conf.tmzone == "local":
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        return datetime.now(local).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(local).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
-    protocol = protocol
-    loggerid = loggerid
-    sequenceno = sequenceno
     bodybytes = loggerid.encode("utf-8")
     body = bodybytes.hex()
     if protocol == "06":
@@ -131,7 +128,7 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
     # just to be sure delete register info
     try:
         del commandresponse["18"]["001f"]
-    except:
+    except Exception:
         pass
 
     return body
@@ -162,7 +159,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.path = self.path[1 : len(self.path)]
 
             # if self.path.endswith(".html") or self.path.endswith(".ico"):
-            if self.path == "grott.html" or self.path == "favicon.ico":
+            if self.path in ("grott.html", "favicon.ico"):
                 try:
                     f = open(self.path, "rb")
                     self.send_response(200)
@@ -175,7 +172,10 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     f.close()
                     return
                 except IOError:
-                    responsetxt = b"<h2>Welcome to Grott the growatt inverter monitor</h2><br><h3>Made by Ledidobe, Johan Meijer</h3>\r\n"
+                    responsetxt = (
+                        b"<h2>Welcome to Grott the growatt inverter monitor</h2>\r\n"
+                    )
+                    responsetxt += b"<br><h3>Made by Ledidobe, Johan Meijer</h3>\r\n"
                     responserc = 200
                     responseheader = "text/html"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
@@ -198,7 +198,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     sendcommand = "05"
 
                 # validcommand = False
-                if urlquery == {}:
+                if not urlquery:
                     # no command entered return loggerreg info:
                     responsetxt = json.dumps(self.loggerreg).encode("utf-8") + b"\r\n"
                     responserc = 200
@@ -206,121 +206,115 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
 
-                else:
-
-                    try:
-                        # is valid command specified?
-                        command = urlquery["command"][0]
-                        # print(command)
-                        if command in ("register", "regall"):
-                            if self.verbose:
-                                print("\t - " + "Grott: get command: ", command)
-                        else:
-                            # no valid command entered
-                            responsetxt = b"no valid command entered\r\n"
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-                    except:
-                        responsetxt = b"no command entered\r\n"
+                try:
+                    # is valid command specified?
+                    command = urlquery["command"][0]
+                    # print(command)
+                    if command in ("register", "regall"):
+                        if self.verbose:
+                            print("\t - " + "Grott: get command: ", command)
+                    else:
+                        # no valid command entered
+                        responsetxt = b"no valid command entered\r\n"
                         responserc = 400
                         responseheader = "text/plain"
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
+                except Exception:
+                    responsetxt = b"no command entered\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
-                    # test if datalogger  and / or inverter id is specified.
-                    try:
-                        if sendcommand == "05":
+                # test if datalogger  and / or inverter id is specified.
+                try:
+                    if sendcommand == "05":
+                        inverterid_found = False
+                        try:
+                            # test if inverter id is specified and get loggerid
+                            inverterid = urlquery["inverter"][0]
+                            for key in self.loggerreg.keys():
+                                for key2 in self.loggerreg[key].keys():
+                                    if key2 == inverterid:
+                                        dataloggerid = key
+                                        inverterid_found = True
+                                        break
+                        except Exception:
                             inverterid_found = False
-                            try:
-                                # test if inverter id is specified and get loggerid
-                                inverterid = urlquery["inverter"][0]
-                                for key in self.loggerreg.keys():
-                                    for key2 in self.loggerreg[key].keys():
-                                        if key2 == inverterid:
-                                            dataloggerid = key
-                                            inverterid_found = True
-                                            break
-                            except:
-                                inverterid_found = False
 
-                            if not inverterid_found:
-                                responsetxt = b"no or no valid invertid specified\r\n"
-                                responserc = 400
-                                responseheader = "text/html"
-                                htmlsendresp(
-                                    self, responserc, responseheader, responsetxt
-                                )
-                                return
+                        if not inverterid_found:
+                            responsetxt = b"no or no valid invertid specified\r\n"
+                            responserc = 400
+                            responseheader = "text/html"
+                            htmlsendresp(self, responserc, responseheader, responsetxt)
+                            return
 
-                            try:
-                                # is format keyword specified? (dec, text, hex)
-                                formatval = urlquery["format"][0]
-                                if formatval not in ("dec", "hex", "text"):
-                                    responsetxt = b"invalid format specified\r\n"
-                                    responserc = 400
-                                    responseheader = "text/plain"
-                                    htmlsendresp(
-                                        self, responserc, responseheader, responsetxt
-                                    )
-                                    return
-                            except:
-                                # no set default format op dec.
-                                formatval = "dec"
-
-                        if sendcommand == "19":
-                            # if read datalogger info.
-                            dataloggerid = urlquery["datalogger"][0]
-
-                            try:
-                                # Verify dataloggerid is specified
-                                dataloggerid = urlquery["datalogger"][0]
-                                test = self.loggerreg[dataloggerid]
-                            except:
-                                responsetxt = b"invalid datalogger id\r\n"
+                        try:
+                            # is format keyword specified? (dec, text, hex)
+                            formatval = urlquery["format"][0]
+                            if formatval not in ("dec", "hex", "text"):
+                                responsetxt = b"invalid format specified\r\n"
                                 responserc = 400
                                 responseheader = "text/plain"
                                 htmlsendresp(
                                     self, responserc, responseheader, responsetxt
                                 )
                                 return
-                    except:
-                        # do not think we will come here
-                        responsetxt = b"no datalogger or inverterid specified\r\n"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
+                        except Exception:
+                            # no set default format op dec.
+                            formatval = "dec"
 
-                    # test if register is specified and set reg value.
-                    if command == "register":
-                        # test if valid reg is applied
-                        if (
-                            int(urlquery["register"][0]) >= 0
-                            and int(urlquery["register"][0]) < 1024
-                        ):
-                            register = urlquery["register"][0]
-                        else:
-                            responsetxt = b"invalid reg value specified\r\n"
+                    if sendcommand == "19":
+                        # if read datalogger info.
+                        dataloggerid = urlquery["datalogger"][0]
+
+                        try:
+                            # Verify dataloggerid is specified
+                            dataloggerid = urlquery["datalogger"][0]
+                            test = self.loggerreg[dataloggerid]
+                        except Exception:
+                            responsetxt = b"invalid datalogger id\r\n"
                             responserc = 400
                             responseheader = "text/plain"
                             htmlsendresp(self, responserc, responseheader, responsetxt)
                             return
-                    elif command == "regall":
-                        comresp = self.commandresponse[sendcommand]
-                        responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
-                        responserc = 200
-                        responseheader = "application/json"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
+                except Exception:
+                    # do not think we will come here
+                    responsetxt = b"no datalogger or inverterid specified\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
+                # test if register is specified and set reg value.
+                if command == "register":
+                    # test if valid reg is applied
+                    if (
+                        int(urlquery["register"][0]) >= 0
+                        and int(urlquery["register"][0]) < 1024
+                    ):
+                        register = urlquery["register"][0]
                     else:
-                        responsetxt = b"command not defined or not available yet\r\n"
+                        responsetxt = b"invalid reg value specified\r\n"
                         responserc = 400
                         responseheader = "text/plain"
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
+                elif command == "regall":
+                    comresp = self.commandresponse[sendcommand]
+                    responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
+                    responserc = 200
+                    responseheader = "application/json"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+
+                else:
+                    responsetxt = b"command not defined or not available yet\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
                 bodybytes = dataloggerid.encode("utf-8")
                 body = bodybytes.hex()
@@ -366,13 +360,13 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 regkey = f"{int(register):04x}"
                 try:
                     del self.commandresponse[sendcommand][regkey]
-                except:
+                except Exception:
                     pass
 
                 # wait for response
                 if self.verbose:
                     print("\t - Grotthttpserver - wait for GET response")
-                for x in range(self.conf.registerreadtimeout * 100):
+                for _ in range(self.conf.registerreadtimeout * 100):
                     try:
                         comresp = self.commandresponse[sendcommand][regkey]
 
@@ -389,18 +383,18 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
 
-                    except:
+                    except Exception:
                         # wait for 0.01 second and try again
                         time.sleep(0.01)
                 try:
-                    if comresp != "":
+                    if comresp:
                         responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
                         responserc = 200
                         responseheader = "application/json"
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
 
-                except:
+                except Exception:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
@@ -431,7 +425,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
 
         except Exception as e:
             print(
-                "\t - Grottserver - exception in htppserver thread - get occured : ", e
+                "\t - Grottserver - exception in httpserver thread - get occured : ", e
             )
 
     def do_PUT(self):
@@ -460,7 +454,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         )
                     sendcommand = "06"
 
-                if urlquery == "":
+                if not urlquery:
                     # no command entered return loggerreg info:
                     responsetxt = b"empty put received\r\n"
                     responserc = 400
@@ -468,165 +462,156 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
 
-                else:
-
-                    try:
-                        # is valid command specified?
-                        command = urlquery["command"][0]
-                        if command in ("register", "datetime"):
-                            if self.verbose:
-                                print("\t - Grotthttpserver - PUT command: ", command)
-                        else:
-                            responsetxt = b"no valid command entered\r\n"
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-                    except:
-                        responsetxt = b"no command entered\r\n"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                    # test if datalogger  and / or inverter id is specified.
-                    try:
-                        if sendcommand == "06":
-                            inverterid_found = False
-                            try:
-                                # test if inverter id is specified and get loggerid
-                                inverterid = urlquery["inverter"][0]
-                                for key in self.loggerreg.keys():
-                                    for key2 in self.loggerreg[key].keys():
-                                        if key2 == inverterid:
-                                            dataloggerid = key
-                                            inverterid_found = True
-                                            break
-                            except:
-                                inverterid_found = False
-
-                            if not inverterid_found:
-                                responsetxt = b"no or invalid invertid specified\r\n"
-                                responserc = 400
-                                responseheader = "text/plain"
-                                htmlsendresp(
-                                    self, responserc, responseheader, responsetxt
-                                )
-                                return
-
-                        if sendcommand == "18":
-                            # if read datalogger info.
-                            dataloggerid = urlquery["datalogger"][0]
-
-                            try:
-                                # Verify dataloggerid is specified
-                                dataloggerid = urlquery["datalogger"][0]
-                                test = self.loggerreg[dataloggerid]
-
-                            except:
-                                responsetxt = b"invalid datalogger id\r\n"
-                                responserc = 400
-                                responseheader = "text/plain"
-                                htmlsendresp(
-                                    self, responserc, responseheader, responsetxt
-                                )
-                                return
-                    except:
-                        # do not think we will come here
-                        responsetxt = b"no datalogger or inverterid specified\r\n"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                    # test if register is specified and set reg value.
-
-                    if command == "register":
-                        # test if valid reg is applied
-                        if (
-                            int(urlquery["register"][0]) >= 0
-                            and int(urlquery["register"][0]) < 1024
-                        ):
-                            register = urlquery["register"][0]
-                        else:
-                            responsetxt = b"invalid reg value specified\r\n"
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-
-                        try:
-                            value = urlquery["value"][0]
-                        except:
-                            responsetxt = b"no value specified\r\n"
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-
-                        if value == "":
-                            responsetxt = b"no value specified\r\n"
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-
-                    elif command == "datetime":
-                        # process set datetime, only allowed for datalogger!!!
-                        if sendcommand == "06":
-                            responsetxt = (
-                                b"datetime command not allowed for inverter\r\n"
-                            )
-                            responserc = 400
-                            responseheader = "text/plain"
-                            htmlsendresp(self, responserc, responseheader, responsetxt)
-                            return
-                        # prepare datetime
-                        register = 31
-                        value = getcurrenttime(self.conf)
-
+                try:
+                    # is valid command specified?
+                    command = urlquery["command"][0]
+                    if command in ("register", "datetime"):
+                        if self.verbose:
+                            print("\t - Grotthttpserver - PUT command: ", command)
                     else:
-                        # Start additional command processing here,  to be created: translate command to register (from list>)
-                        responsetxt = b"command not defined or not available yet\r\n"
+                        responsetxt = b"no valid command entered\r\n"
+                        responserc = 400
+                        responseheader = "text/plain"
+                        htmlsendresp(self, responserc, responseheader, responsetxt)
+                        return
+                except Exception:
+                    responsetxt = b"no command entered\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+
+                # test if datalogger  and / or inverter id is specified.
+                try:
+                    if sendcommand == "06":
+                        inverterid_found = False
+                        try:
+                            # test if inverter id is specified and get loggerid
+                            inverterid = urlquery["inverter"][0]
+                            for key in self.loggerreg.keys():
+                                for key2 in self.loggerreg[key].keys():
+                                    if key2 == inverterid:
+                                        dataloggerid = key
+                                        inverterid_found = True
+                                        break
+                        except Exception:
+                            inverterid_found = False
+
+                        if not inverterid_found:
+                            responsetxt = b"no or invalid invertid specified\r\n"
+                            responserc = 400
+                            responseheader = "text/plain"
+                            htmlsendresp(self, responserc, responseheader, responsetxt)
+                            return
+
+                    if sendcommand == "18":
+                        # if read datalogger info.
+                        dataloggerid = urlquery["datalogger"][0]
+
+                        try:
+                            # Verify dataloggerid is specified
+                            dataloggerid = urlquery["datalogger"][0]
+                            test = self.loggerreg[dataloggerid]
+
+                        except Exception:
+                            responsetxt = b"invalid datalogger id\r\n"
+                            responserc = 400
+                            responseheader = "text/plain"
+                            htmlsendresp(self, responserc, responseheader, responsetxt)
+                            return
+                except Exception:
+                    # do not think we will come here
+                    responsetxt = b"no datalogger or inverterid specified\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+
+                # test if register is specified and set reg value.
+
+                if command == "register":
+                    # test if valid reg is applied
+                    if (
+                        int(urlquery["register"][0]) >= 0
+                        and int(urlquery["register"][0]) < 1024
+                    ):
+                        register = urlquery["register"][0]
+                    else:
+                        responsetxt = b"invalid reg value specified\r\n"
                         responserc = 400
                         responseheader = "text/plain"
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
 
-                    # test value:
+                    try:
+                        value = urlquery["value"][0]
+                    except Exception:
+                        responsetxt = b"no value specified\r\n"
+                        responserc = 400
+                        responseheader = "text/plain"
+                        htmlsendresp(self, responserc, responseheader, responsetxt)
+                        return
+
+                    if value == "":
+                        responsetxt = b"no value specified\r\n"
+                        responserc = 400
+                        responseheader = "text/plain"
+                        htmlsendresp(self, responserc, responseheader, responsetxt)
+                        return
+
+                elif command == "datetime":
+                    # process set datetime, only allowed for datalogger!!!
                     if sendcommand == "06":
-                        try:
-                            # is format keyword specified? (dec, text, hex)
-                            formatval = urlquery["format"][0]
-                            if formatval not in ("dec", "hex", "text"):
-                                responsetxt = b"invalid format specified\r\n"
-                                responserc = 400
-                                responseheader = "text/plain"
-                                htmlsendresp(
-                                    self, responserc, responseheader, responsetxt
-                                )
-                                return
-                        except:
-                            # no set default format op dec.
-                            formatval = "dec"
+                        responsetxt = b"datetime command not allowed for inverter\r\n"
+                        responserc = 400
+                        responseheader = "text/plain"
+                        htmlsendresp(self, responserc, responseheader, responsetxt)
+                        return
+                    # prepare datetime
+                    register = 31
+                    value = getcurrenttime(self.conf)
 
-                        # convert value if necessary
-                        if formatval == "dec":
-                            # input in dec (standard)
-                            value = int(value)
-                        elif formatval == "text":
-                            # input in text
-                            value = int(value.encode("utf-8").hex(), 16)
-                        else:
-                            # input in Hex
-                            value = int(value, 16)
+                else:
+                    # Start additional command processing here, to be created:
+                    # translate command to register (from list>)
+                    responsetxt = b"command not defined or not available yet\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
-                        if value < 0 and value > 65535:
-                            responsetxt = b"invalid value specified\r\n"
+                # test value:
+                if sendcommand == "06":
+                    try:
+                        # is format keyword specified? (dec, text, hex)
+                        formatval = urlquery["format"][0]
+                        if formatval not in ("dec", "hex", "text"):
+                            responsetxt = b"invalid format specified\r\n"
                             responserc = 400
                             responseheader = "text/plain"
                             htmlsendresp(self, responserc, responseheader, responsetxt)
                             return
+                    except Exception:
+                        # no set default format op dec.
+                        formatval = "dec"
+
+                    # convert value if necessary
+                    if formatval == "dec":
+                        # input in dec (standard)
+                        value = int(value)
+                    elif formatval == "text":
+                        # input in text
+                        value = int(value.encode("utf-8").hex(), 16)
+                    else:
+                        # input in Hex
+                        value = int(value, 16)
+
+                    if value < 0 and value > 65535:
+                        responsetxt = b"invalid value specified\r\n"
+                        responserc = 400
+                        responseheader = "text/plain"
+                        htmlsendresp(self, responserc, responseheader, responsetxt)
+                        return
 
                 # start creating command
 
@@ -679,20 +664,22 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 responseno = f"{self.conf.sendseq:04x}"
                 regkey = f"{int(register):04x}"
                 try:
-                    # delete response: be aware a 18 command give 19 response, 06 send command gives 06 response in differnt format!
+                    # delete response: be aware a 18 command give 19 response,
+                    # 06 send command gives 06 response in differnt format!
                     if sendcommand == "18":
                         del self.commandresponse[sendcommand][regkey]
                     else:
                         del self.commandresponse[sendcommand][regkey]
-                except:
+                except Exception:
                     pass
 
                 # wait for response
                 if self.verbose:
                     print("\t - Grotthttpserver - wait for PUT response")
-                for x in range(self.conf.registerwritetimeout * 100):
+                for _ in range(self.conf.registerwritetimeout * 100):
                     try:
-                        # read response: be aware a 18 command give 19 response, 06 send command gives 06 response in differnt format!
+                        # read response: be aware a 18 command give 19 response,
+                        # 06 send command gives 06 response in differnt format!
                         if sendcommand == "18":
                             comresp = self.commandresponse["18"][regkey]
                         else:
@@ -705,7 +692,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                                 self.commandresponse[sendcommand][regkey],
                             )
                         break
-                    except:
+                    except Exception:
                         # wait for 0.01 second and try again
                         time.sleep(0.01)
                 try:
@@ -716,7 +703,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
 
-                except:
+                except Exception:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
@@ -747,7 +734,10 @@ class GrottHttpServer:
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
         def handler_factory(*args):
-            """Using a function to create and return the handler, so we can provide our own argument (send_queue)"""
+            """
+            Using a function to create and return the handler,
+            so we can provide our own argument (send_queue)
+            """
             return GrottHttpRequestHandler(
                 send_queuereg, conf, loggerreg, commandresponse, *args
             )
@@ -819,7 +809,7 @@ class sendrecvserver:
                         # Empty read means connection is closed, perform cleanup
                         self.close_connection(s)
                 # except ConnectionResetError:
-                except:
+                except Exception:
                     self.close_connection(s)
 
         except Exception as e:
@@ -834,7 +824,7 @@ class sendrecvserver:
             try:
                 # try for debug 007
                 client_address, client_port = s.getpeername()
-            except:
+            except Exception:
                 print("\t - Grottserver - socket closed :")
                 print("\t\t ", s)
                 s.close
@@ -1112,7 +1102,7 @@ class sendrecvserver:
                                 "protocol": header[6:8],
                             }
                         )
-                    except:
+                    except Exception:
                         self.loggerreg[loggerid] = {
                             "ip": client_address,
                             "port": client_port,
@@ -1191,29 +1181,6 @@ class sendrecvserver:
             print("\t - Grottserver - exception in main server thread occured : ", e)
 
 
-"""
-if __name__ == "__main__":
-    print("\t - Grottserver - Version: " + verrel)
-
-    send_queuereg = {}
-    loggerreg = {}
-    # response from command is written is this variable (for now flat, maybe dict later)
-    commandresponse = defaultdict(dict)
-
-    http_server = GrottHttpServer(httphost, httpport, send_queuereg)
-    device_server = sendrecvserver(serverhost, serverport, send_queuereg)
-
-    http_server_thread = threading.Thread(target=http_server.run)
-    device_server_thread = threading.Thread(target=device_server.run)
-
-    http_server_thread.start()
-    device_server_thread.start()
-
-    while True:
-        time.sleep(5)
-"""
-
-
 class Server:
     def __init__(self, conf):
         self.conf = conf
@@ -1222,21 +1189,21 @@ class Server:
         self.commandresponse = defaultdict(dict)
 
     def main(self, conf):
-        if self.conf.grottip == "default":
-            self.conf.grottip = "0.0.0.0"
+        if conf.grottip == "default":
+            conf.grottip = "0.0.0.0"
 
-        self.http_server = GrottHttpServer(
-            self.conf, self.send_queuereg, self.loggerreg, self.commandresponse
+        http_server = GrottHttpServer(
+            conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
-        self.device_server = sendrecvserver(
-            self.conf, self.send_queuereg, self.loggerreg, self.commandresponse
+        device_server = sendrecvserver(
+            conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
 
-        self.http_server_thread = threading.Thread(target=self.http_server.run)
-        self.device_server_thread = threading.Thread(target=self.device_server.run)
+        http_server_thread = threading.Thread(target=http_server.run)
+        device_server_thread = threading.Thread(target=device_server.run)
 
-        self.http_server_thread.start()
-        self.device_server_thread.start()
+        http_server_thread.start()
+        device_server_thread.start()
 
-        self.http_server_thread.join()
-        self.device_server_thread.join()
+        http_server_thread.join()
+        device_server_thread.join()
