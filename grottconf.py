@@ -40,6 +40,15 @@ class Conf:
         self.outfile = "sys.stdout"
         self.tmzone = "local"  # set timezone (at this moment only used for influxdb)
 
+        # Grott server mode
+        self.httphost = "0.0.0.0"
+        self.httpport = 5782
+        self.registerreadtimeout = 7
+        self.registerwritetimeout = 15
+        self.firstping = False
+        self.sendseq = 1
+        self.serverforward = False
+
         # Growatt server default
         self.growattip = "47.91.67.66"
         self.growattport = 5279
@@ -480,6 +489,20 @@ class Conf:
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
+        if config.has_option("Server", "ip"):
+            self.httphost = config.get("Server", "httpip")
+        if config.has_option("Server", "port"):
+            self.httpport = config.getint("Server", "httpport")
+        if config.has_option("Server", "registerreadtimeout"):
+            self.registerreadtimeout = config.getint("Server", "registerreadtimeout")
+        if config.has_option("Server", "registerwritetimeout"):
+            self.registerwritetimeout = config.getint("HTTP", "registerwritetimeout")
+        if config.has_option("Server", "firstping"):
+            self.firstping = config.getboolean("Server", "firstping")
+        if config.has_option("Server", "sendseq"):
+            self.sendseq = config.getint("Server", "sendseq")
+        if config.has_option("Server", "serverforward"):
+            self.serverforward = config.getboolean("Server", "serverforward")
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
         if config.has_option("MQTT", "ip"):

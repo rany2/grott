@@ -12,10 +12,12 @@ import time
 # import time
 from datetime import datetime, timedelta
 from itertools import cycle  # to support "cycling" the iterator
-# from os import times_result
 
 # import mqtt
 import paho.mqtt.publish as publish
+
+# from os import times_result
+
 
 # requests
 

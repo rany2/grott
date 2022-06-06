@@ -1,10 +1,12 @@
 import socket
 import struct
+
+from grottdata import procdata
+
 # import select
 # import time
 # import sys
 
-from grottdata import procdata
 
 # import textwrap
 # from itertools import cycle # to support "cycling" the iterator

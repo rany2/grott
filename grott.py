@@ -18,6 +18,7 @@ import sys
 
 from grottconf import Conf
 from grottproxy import Proxy
+from grottserver import Server
 from grottsniffer import Sniff
 
 # proces config file
@@ -46,6 +47,14 @@ elif conf.mode == "sniff":
     sniff = Sniff(conf)
     try:
         sniff.main(conf)
+    except KeyboardInterrupt:
+        print("Ctrl C - Stopping server")
+        sys.exit(1)
+
+elif conf.mode == "server":
+    server = Server(conf)
+    try:
+        server.main(conf)
     except KeyboardInterrupt:
         print("Ctrl C - Stopping server")
         sys.exit(1)
