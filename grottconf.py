@@ -489,9 +489,9 @@ class Conf:
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
-        if config.has_option("Server", "ip"):
+        if config.has_option("Server", "httpip"):
             self.httphost = config.get("Server", "httpip")
-        if config.has_option("Server", "port"):
+        if config.has_option("Server", "httpport"):
             self.httpport = config.getint("Server", "httpport")
         if config.has_option("Server", "registerreadtimeout"):
             self.registerreadtimeout = config.getint("Server", "registerreadtimeout")
