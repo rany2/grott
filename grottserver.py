@@ -880,25 +880,25 @@ class sendrecvserver:
             self.forward_input[connection] = ()
             self.rw_mutex[connection] = threading.Lock()
             if self.conf.serverforward:
-                forward = Forward().start(self.growattip, self.growattport)
+                forward = Forward().start(self.conf.growattip, self.conf.growattport)
                 if forward:
                     if self.verbose:
                         print(
                             "\t - " + "Grottserver - Forward started: ",
-                            self.growattip,
-                            self.growattport,
+                            self.conf.growattip,
+                            self.conf.growattport,
                         )
                     self.forward_input[connection] = (
                         forward,
-                        self.growattip,
-                        self.growattport,
+                        self.conf.growattip,
+                        self.conf.growattport,
                     )
                     self.rw_mutex[forward] = threading.Lock()
                 else:
                     print(
                         "\t - " + "Grottserver - Forward failed: ",
-                        self.growattip,
-                        self.growattport,
+                        self.conf.growattip,
+                        self.conf.growattport,
                     )
             print(
                 f"\t - Grottserver - Socket connection received from {client_address}"
