@@ -1028,7 +1028,8 @@ class sendrecvserver:
             else:
                 if self.conf.verbose:
                     print(
-                        "\t - " + "Data less then minimum record length, data not processed"
+                        "\t - "
+                        + "Data less then minimum record length, data not processed"
                     )
 
             # Create header

@@ -10,7 +10,7 @@ import textwrap
 # import pytz
 import time
 # import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import cycle  # to support "cycling" the iterator
 
 # import mqtt
@@ -887,10 +887,12 @@ def procdata(conf, data):
             # print(local)
 
         if conf.tmzone == "local":
-            curtz = time.timezone
-            utc_dt = datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S") + timedelta(
-                seconds=curtz
+            curtz = (
+                datetime.now(timezone.utc)
+                .astimezone()
+                .tzinfo.utcoffset(datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S"))
             )
+            utc_dt = datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S") - curtz
         else:
             naive = datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S")
             local_dt = local.localize(naive, is_dst=None)
