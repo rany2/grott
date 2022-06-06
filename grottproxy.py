@@ -3,23 +3,25 @@
 # Updated: 2022-06-02
 # Version 2.7.4
 
-import socket
+import codecs
+import datetime
+import json
 import select
-import time
-import sys
+import socket
 import struct
+import sys
 import textwrap
+import time
 from itertools import cycle  # to support "cycling" the iterator
-import time, json, datetime, codecs
 
 ## to resolve errno 32: broken pipe issue (only linux)
 if sys.platform != "win32":
-    from signal import signal, SIGPIPE, SIG_DFL
-
-from grottdata import procdata, decrypt, format_multi_line
+    from signal import SIG_DFL, SIGPIPE, signal
 
 # import mqtt
 import paho.mqtt.publish as publish
+
+from grottdata import decrypt, format_multi_line, procdata
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things

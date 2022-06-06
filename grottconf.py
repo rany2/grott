@@ -3,10 +3,16 @@
 # Updated: 2022-05-17
 # Version 2.7.3
 
-import configparser, sys, argparse, os, json, io
+import argparse
+import configparser
+import io
 import ipaddress
+import json
+import os
+import sys
 from os import walk
-from grottdata import format_multi_line, str2bool
+
+from grottdata import str2bool
 
 
 class Conf:

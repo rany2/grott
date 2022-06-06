@@ -2,22 +2,23 @@
 # Version 2.7.1
 # Updated: 2022-02-06
 
-# import time
-from datetime import datetime, timedelta
-from os import times_result
-
+import codecs
+import json
+# import struct
+# import sys
+import textwrap
 # import pytz
 import time
-import sys
-import struct
-import textwrap
+# import time
+from datetime import datetime, timedelta
 from itertools import cycle  # to support "cycling" the iterator
-import json, codecs
-
-# requests
+# from os import times_result
 
 # import mqtt
 import paho.mqtt.publish as publish
+
+# requests
+
 
 # Formats multi-line data
 def format_multi_line(prefix, string, size=80):

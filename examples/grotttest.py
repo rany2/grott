@@ -6,7 +6,6 @@ verrel = "2.6.1"
 import sys
 
 from grottconf import Conf
-
 from grottdata import procdata
 
 # proces config file

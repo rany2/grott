@@ -1,15 +1,14 @@
 import socket
-
+import struct
 # import select
 # import time
-import sys
-import struct
+# import sys
+
+from grottdata import procdata
 
 # import textwrap
 # from itertools import cycle # to support "cycling" the iterator
 # import time, json, datetime, codecs
-
-from grottdata import procdata
 
 
 class Sniff:

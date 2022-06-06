@@ -1,18 +1,20 @@
+import codecs
+import http.server
+import json
+import queue
 import select
 import socket
-import queue
 import textwrap
-import libscrc
 import threading
 import time
-import http.server
-import json, codecs
-import pytz
-from itertools import cycle
-from io import BytesIO
-from datetime import datetime
-from urllib.parse import urlparse, parse_qs, parse_qsl
 from collections import defaultdict
+from datetime import datetime
+from itertools import cycle
+from urllib.parse import parse_qs, urlparse
+
+import libscrc
+import pytz
+
 from grottproxy import Forward
 
 # grottserver.py emulates the server.growatt.com website and is initial developed for debugging and testing grott.
