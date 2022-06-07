@@ -1,4 +1,5 @@
 import codecs
+import errno
 import http.server
 import json
 import queue
@@ -772,7 +773,6 @@ class sendrecvserver:
         self.outputs = []
         self.forward_input = {}
         self.send_queuereg = send_queuereg
-        self.rw_mutex = {}
 
         print(f"\t - Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
@@ -801,14 +801,19 @@ class sendrecvserver:
             else:
                 # Existing connection
                 try:
-                    with self.rw_mutex[s]:
-                        data = s.recv(1024)
+                    data = s.recv(1024)
                     if data:
                         self.process_data(s, data)
                     else:
                         # Empty read means connection is closed, perform cleanup
                         self.close_connection(s)
-                # except ConnectionResetError:
+                except socket.error as e:
+                    if e.errno == errno.EWOULDBLOCK:
+                        # Socket is ready but there is no data
+                        pass
+                    else:
+                        # Connection error
+                        self.close_connection(s)
                 except Exception:
                     self.close_connection(s)
 
@@ -841,8 +846,7 @@ class sendrecvserver:
                         qname + " msg: ",
                     )
                     print(format_multi_line("\t\t ", next_msg))
-                with self.rw_mutex[s]:
-                    s.send(next_msg)
+                s.send(next_msg)
 
             except queue.Empty:
                 pass
@@ -868,7 +872,6 @@ class sendrecvserver:
             self.inputs.append(connection)
             self.outputs.append(connection)
             self.forward_input[connection] = ()
-            self.rw_mutex[connection] = threading.Lock()
             if self.conf.serverforward:
                 forward = Forward().start(self.conf.growattip, self.conf.growattport)
                 if forward:
@@ -883,7 +886,6 @@ class sendrecvserver:
                         self.conf.growattip,
                         self.conf.growattport,
                     )
-                    self.rw_mutex[forward] = threading.Lock()
                 else:
                     print(
                         "\t - " + "Grottserver - Forward failed: ",
@@ -913,14 +915,12 @@ class sendrecvserver:
             return
         fsock, host, port = self.forward_input[s]
         try:
-            with self.rw_mutex[fsock]:
-                fsock.send(data)
+            fsock.send(data)
             print(f"\t - Grottserver - Forward data sent for {host}:{port}")
         except Exception as e:
             # print("\t - Grottserver - exception in forward_data : {} for {}:{}".format(e, host, port))
             # try to reconnect if connection is closed
             fsock.close()
-            del self.rw_mutex[fsock]
             del self.forward_input[s]
 
             forward = Forward().start(host, port)
@@ -928,7 +928,6 @@ class sendrecvserver:
                 if self.verbose:
                     print("\t - Grottserver - Forward started: ", host, port)
                 self.forward_input[s] = (forward, host, port)
-                self.rw_mutex[forward] = threading.Lock()
                 if attempts < 3:
                     self.forward_data(s, data, attempts + 1)
                 else:
@@ -945,9 +944,6 @@ class sendrecvserver:
             if s in self.forward_input:
                 fsock, host, port = self.forward_input[s]
                 fsock.close()
-                del self.rw_mutex[fsock]
-            if s in self.rw_mutex:
-                del self.rw_mutex[s]
             client_address, client_port = s.getpeername()
             qname = client_address + "_" + str(client_port)
             del self.send_queuereg[qname]
