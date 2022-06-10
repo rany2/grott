@@ -23,7 +23,7 @@ from grottproxy import Forward
 # initially developed for debugging and testing grott.
 # Updated: 2022-06-02
 # Version:
-verrel = "0.0.7"
+verrel = "0.0.8a"
 
 
 # Formats multi-line data
@@ -822,7 +822,7 @@ class sendrecvserver:
                 "\t - Grottserver - exception in server thread - handle_readable_socket : ",
                 e,
             )
-            print("\t - socket: ", s)
+            # print("\t - socket: ", s)
 
     def handle_writable_socket(self, s):
         try:
@@ -856,7 +856,7 @@ class sendrecvserver:
                 "\t - Grottserver - exception in server thread - handle_writable_socket : ",
                 e,
             )
-            print("\t\t ", s)
+            # print("\t\t ", s)
             # self.close_connection(s)
             # print(s)
 
@@ -968,7 +968,7 @@ class sendrecvserver:
             print(
                 "\t - Grottserver - exception in server thread - close connection :", e
             )
-            print("\t\t ", s)
+            # print("\t\t ", s)
 
             # try:
             #     s.close()
