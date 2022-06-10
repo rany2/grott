@@ -355,7 +355,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     + "_"
                     + str(self.loggerreg[dataloggerid]["port"])
                 )
-                self.send_queuereg[qname].put(body)
+                self.send_queuereg[qname].put_nowait(body)
                 responseno = f"{self.conf.sendseq:04x}"
                 regkey = f"{int(register):04x}"
                 try:
@@ -660,7 +660,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     + "_"
                     + str(self.loggerreg[dataloggerid]["port"])
                 )
-                self.send_queuereg[qname].put(body)
+                self.send_queuereg[qname].put_nowait(body)
                 responseno = f"{self.conf.sendseq:04x}"
                 regkey = f"{int(register):04x}"
                 try:
@@ -1077,8 +1077,7 @@ class sendrecvserver:
                     self.loggerreg[loggerid].update(
                         {inverterid: {"inverterno": header[12:14], "power": 0}}
                     )
-                    self.send_queuereg[qname].put(response)
-                    time.sleep(1)
+                    self.send_queuereg[qname].put_nowait(response)
                     response = createtimecommand(
                         self.conf, protocol, loggerid, "0001", self.commandresponse
                     )
@@ -1139,7 +1138,7 @@ class sendrecvserver:
                 if self.verbose:
                     print("\t - Grottserver - Put response on queue: ", qname, " msg: ")
                     print(format_multi_line("\t\t ", response))
-                self.send_queuereg[qname].put(response)
+                self.send_queuereg[qname].put_nowait(response)
         except Exception as e:
             print("\t - Grottserver - exception in main server thread occured : ", e)
 
