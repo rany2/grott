@@ -287,6 +287,13 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
 
+                # create qname for command
+                qname = (
+                    self.loggerreg[dataloggerid]["ip"]
+                    + "_"
+                    + str(self.loggerreg[dataloggerid]["port"])
+                )
+
                 # test if register is specified and set reg value.
                 if command == "register":
                     # test if valid reg is applied
@@ -302,7 +309,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         htmlsendresp(self, responserc, responseheader, responsetxt)
                         return
                 elif command == "regall":
-                    comresp = self.commandresponse[sendcommand]
+                    comresp = self.commandresponse[qname][sendcommand]
                     responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
                     responserc = 200
                     responseheader = "application/json"
@@ -350,16 +357,11 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     print(format_multi_line("\t\t ", body))
 
                 # queue command
-                qname = (
-                    self.loggerreg[dataloggerid]["ip"]
-                    + "_"
-                    + str(self.loggerreg[dataloggerid]["port"])
-                )
                 self.send_queuereg[qname].put_nowait(body)
                 responseno = f"{self.conf.sendseq:04x}"
                 regkey = f"{int(register):04x}"
                 try:
-                    del self.commandresponse[sendcommand][regkey]
+                    del self.commandresponse[qname][sendcommand][regkey]
                 except Exception:
                     pass
 
@@ -368,7 +370,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     print("\t - Grotthttpserver - wait for GET response")
                 for _ in range(self.conf.registerreadtimeout * 100):
                     try:
-                        comresp = self.commandresponse[sendcommand][regkey]
+                        comresp = self.commandresponse[qname][sendcommand][regkey]
 
                         if sendcommand == "05":
                             if formatval == "dec":
@@ -667,9 +669,9 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     # delete response: be aware a 18 command give 19 response,
                     # 06 send command gives 06 response in differnt format!
                     if sendcommand == "18":
-                        del self.commandresponse[sendcommand][regkey]
+                        del self.commandresponse[qname][sendcommand][regkey]
                     else:
-                        del self.commandresponse[sendcommand][regkey]
+                        del self.commandresponse[qname][sendcommand][regkey]
                 except Exception:
                     pass
 
@@ -681,15 +683,15 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         # read response: be aware a 18 command give 19 response,
                         # 06 send command gives 06 response in differnt format!
                         if sendcommand == "18":
-                            comresp = self.commandresponse["18"][regkey]
+                            comresp = self.commandresponse[qname]["18"][regkey]
                         else:
-                            comresp = self.commandresponse[sendcommand][regkey]
+                            comresp = self.commandresponse[qname][sendcommand][regkey]
                         if self.verbose:
                             print(
                                 "\t - " + "Grotthttperver - Commandresponse ",
                                 responseno,
                                 register,
-                                self.commandresponse[sendcommand][regkey],
+                                self.commandresponse[qname][sendcommand][regkey],
                             )
                         break
                     except Exception:
@@ -873,7 +875,8 @@ class sendrecvserver:
 
             # create queue
             self.send_queuereg[qname] = queue.Queue()
-            # print(send_queuereg)
+            # create command response
+            self.commandresponse[qname] = defaultdict(dict)
             if self.verbose:
                 print(f"\t - Grottserver - Send queue created for : {qname}")
         except Exception as e:
@@ -920,8 +923,8 @@ class sendrecvserver:
             client_address, client_port = s.getpeername()
             qname = f"{client_address}_{client_port}"
             del self.send_queuereg[qname]
+            del self.commandresponse[qname]
 
-            ### after this also clean the logger reg. To be implemented ?
             for key in self.loggerreg.keys():
                 if (
                     self.loggerreg[key]["ip"] == client_address
@@ -932,8 +935,6 @@ class sendrecvserver:
                         "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
                         key,
                     )
-                    # to be developed delete also register information for this datalogger (and connected inverters).
-                    # Be aware this need redef of commandresp!
                     break
 
         except Exception as e:
@@ -1079,7 +1080,7 @@ class sendrecvserver:
                     )
                     self.send_queuereg[qname].put_nowait(response)
                     response = createtimecommand(
-                        self.conf, protocol, loggerid, "0001", self.commandresponse
+                        self.conf, protocol, loggerid, "0001", self.commandresponse[qname]
                     )
                     if self.verbose:
                         print("\t - Grottserver 03 announce data record processed")
@@ -1116,16 +1117,16 @@ class sendrecvserver:
                 regkey = f"{register:04x}"
                 if command == "06":
                     # command 06 response has ack (result) + value. We will create a 06 response and a 05 response (for reg administration)
-                    self.commandresponse["06"][regkey] = {
+                    self.commandresponse[qname]["06"][regkey] = {
                         "value": value,
                         "result": result,
                     }
-                    self.commandresponse["05"][regkey] = {"value": value}
+                    self.commandresponse[qname]["05"][regkey] = {"value": value}
                 if command == "18":
-                    self.commandresponse["18"][regkey] = {"result": result}
+                    self.commandresponse[qname]["18"][regkey] = {"result": result}
                 else:
                     # command 05 or 19
-                    self.commandresponse[command][regkey] = {"value": value}
+                    self.commandresponse[qname][command][regkey] = {"value": value}
 
                 response = None
 
