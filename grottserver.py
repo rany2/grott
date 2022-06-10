@@ -1,5 +1,4 @@
 import codecs
-import errno
 import http.server
 import json
 import queue
@@ -760,19 +759,17 @@ class sendrecvserver:
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server.setblocking(0)
         self.server.bind((conf.grottip, conf.grottport))
         self.server.listen(5)
 
-        self.conf = conf
-        self.verbose = conf.verbose
-        self.send_queuereg = send_queuereg
-        self.loggerreg = loggerreg
         self.commandresponse = commandresponse
-        self.inputs = [self.server]
-        self.outputs = []
+        self.conf = conf
         self.forward_input = {}
+        self.inputs = [self.server]
+        self.loggerreg = loggerreg
+        self.outputs = []
         self.send_queuereg = send_queuereg
+        self.verbose = conf.verbose
 
         print(f"\t - Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
@@ -800,45 +797,24 @@ class sendrecvserver:
                     print("\t - " + "Grottserver - input received: ", self.server)
             else:
                 # Existing connection
-                try:
-                    data = s.recv(1024)
-                    if data:
-                        self.process_data(s, data)
-                    else:
-                        # Empty read means connection is closed, perform cleanup
-                        self.close_connection(s)
-                except socket.error as e:
-                    if e.errno == errno.EWOULDBLOCK:
-                        # Socket is ready but there is no data
-                        pass
-                    else:
-                        # Connection error
-                        self.close_connection(s)
-                except Exception:
+                data = s.recv(1024)
+                if data:
+                    self.process_data(s, data)
+                else:
                     self.close_connection(s)
-
         except Exception as e:
             print(
                 "\t - Grottserver - exception in server thread - handle_readable_socket : ",
                 e,
             )
-            # print("\t - socket: ", s)
+            self.close_connection(s)
 
     def handle_writable_socket(self, s):
         try:
-            try:
-                # try for debug 007
-                client_address, client_port = s.getpeername()
-            except Exception:
-                print("\t - Grottserver - socket closed :")
-                print("\t\t ", s)
-                s.close
-                return
+            client_address, client_port = s.getpeername()
 
-            # with print statement no crash, without crash, does sleep solve this problem ?
-            time.sleep(0.1)
             try:
-                qname = client_address + "_" + str(client_port)
+                qname = f"{client_address}_{client_port}"
                 next_msg = self.send_queuereg[qname].get_nowait()
                 if self.verbose:
                     print(
@@ -847,7 +823,6 @@ class sendrecvserver:
                     )
                     print(format_multi_line("\t\t ", next_msg))
                 s.send(next_msg)
-
             except queue.Empty:
                 pass
 
@@ -856,9 +831,7 @@ class sendrecvserver:
                 "\t - Grottserver - exception in server thread - handle_writable_socket : ",
                 e,
             )
-            # print("\t\t ", s)
-            # self.close_connection(s)
-            # print(s)
+            self.close_connection(s)
 
     def handle_exceptional_socket(self, s):
         if self.verbose:
@@ -868,7 +841,6 @@ class sendrecvserver:
     def handle_new_connection(self, s):
         try:
             connection, client_address = s.accept()
-            connection.setblocking(0)
             self.inputs.append(connection)
             self.outputs.append(connection)
             self.forward_input[connection] = ()
@@ -892,11 +864,12 @@ class sendrecvserver:
                         self.conf.growattip,
                         self.conf.growattport,
                     )
+                    forward.close()
             print(
                 f"\t - Grottserver - Socket connection received from {client_address}"
             )
             client_address, client_port = connection.getpeername()
-            qname = client_address + "_" + str(client_port)
+            qname = f"{client_address}_{client_port}"
 
             # create queue
             self.send_queuereg[qname] = queue.Queue()
@@ -918,8 +891,6 @@ class sendrecvserver:
             fsock.send(data)
             print(f"\t - Grottserver - Forward data sent for {host}:{port}")
         except Exception as e:
-            # print("\t - Grottserver - exception in forward_data : {} for {}:{}".format(e, host, port))
-            # try to reconnect if connection is closed
             fsock.close()
             del self.forward_input[s]
 
@@ -935,22 +906,23 @@ class sendrecvserver:
 
     def close_connection(self, s):
         try:
-            # client_address, client_port = s.getpeername()
             print("\t - Grottserver - Close connection : ", s)
-            # print(client_address, client_port)
+            s.close()
+
             if s in self.outputs:
                 self.outputs.remove(s)
             self.inputs.remove(s)
+
             if s in self.forward_input:
                 fsock, host, port = self.forward_input[s]
                 fsock.close()
+
             client_address, client_port = s.getpeername()
-            qname = client_address + "_" + str(client_port)
+            qname = f"{client_address}_{client_port}"
             del self.send_queuereg[qname]
+
             ### after this also clean the logger reg. To be implemented ?
             for key in self.loggerreg.keys():
-                # print(key, loggerreg[key])
-                # print(key, loggerreg[key]["ip"], loggerreg[key]["port"])
                 if (
                     self.loggerreg[key]["ip"] == client_address
                     and self.loggerreg[key]["port"] == client_port
@@ -960,20 +932,15 @@ class sendrecvserver:
                         "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
                         key,
                     )
-                    # to be developed delete also register information for this datalogger (and  connected inverters).  Be aware this need redef of commandresp!
+                    # to be developed delete also register information for this datalogger (and connected inverters).
+                    # Be aware this need redef of commandresp!
                     break
-            s.close()
 
         except Exception as e:
             print(
                 "\t - Grottserver - exception in server thread - close connection :", e
             )
-            # print("\t\t ", s)
-
-            # try:
-            #     s.close()
-            # except:
-            #     print("\t - Grottserver - socket close error",s)
+            s.close()
 
     def process_data(self, s, data):
 
@@ -981,7 +948,7 @@ class sendrecvserver:
         try:
             # process data and create response
             client_address, client_port = s.getpeername()
-            qname = client_address + "_" + str(client_port)
+            qname = f"{client_address}_{client_port}"
 
             # Display data
             print(
@@ -1168,7 +1135,6 @@ class sendrecvserver:
                 response = None
 
             if response is not None:
-                # qname = client_address + "_" + str(client_port)
                 if self.verbose:
                     print("\t - Grottserver - Put response on queue: ", qname, " msg: ")
                     print(format_multi_line("\t\t ", response))
