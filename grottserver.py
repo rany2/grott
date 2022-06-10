@@ -973,6 +973,7 @@ class sendrecvserver:
                     " expected: ",
                     int.from_bytes(crc16, "big"),
                 )
+                self.close_connection(s)
                 return
 
             # Collect data for MQTT, PVOutput, InfluxDB, etc..
