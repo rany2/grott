@@ -861,7 +861,6 @@ class sendrecvserver:
                         self.conf.growattip,
                         self.conf.growattport,
                     )
-                    forward.close()
             print(
                 f"\t - Grottserver - Socket connection received from {client_address}"
             )
