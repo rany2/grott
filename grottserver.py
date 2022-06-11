@@ -414,7 +414,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-                except queue.Full:
+                except queue.Empty:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
@@ -710,7 +710,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                         )
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-                except queue.Full:
+                except queue.Empty:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
