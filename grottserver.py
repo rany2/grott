@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 import libscrc
 import pytz
+from argon2 import PasswordHasher
 
 from grottdata import procdata as grottdata
 from grottproxy import Forward
@@ -159,15 +160,38 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
 
 
 class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
-    def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
+    def __init__(
+        self, send_queuereg, conf, loggerreg, commandresponse, passwordhasher, *args
+    ):
         self.send_queuereg = send_queuereg
         self.conf = conf
         self.verbose = conf.verbose
         self.loggerreg = loggerreg
         self.commandresponse = commandresponse
+        self.passwordhasher = passwordhasher
         super().__init__(*args)
 
+    def authorize(self):
+        try:
+            token = self.conf.httptoken
+            if token is not None:
+                authorization = self.headers["Authorization"]
+                if authorization.split(" ")[0] != "Bearer":
+                    raise ValueError("Invalid authorization header")
+                return self.passwordhasher.verify(
+                    token, " ".join(authorization.split(" ")[1:])
+                )
+            else:
+                return True
+        except Exception as e:
+            self.send_error(401, "Unauthorized")
+            return False
+
     def do_GET(self):
+        if not self.authorize():
+            print(self.authorize())
+            return
+
         try:
             if self.verbose:
                 print("\t - Grotthttpserver - Get received ")
@@ -175,38 +199,13 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             url = urlparse(self.path)
             urlquery = parse_qs(url.query)
 
-            if self.path == "/":
-                self.path = "grott.html"
-
             # only allow files from current directory
             if self.path[0] == "/":
                 self.path = self.path[1 : len(self.path)]
+            self.path = self.path.split("?")[0]
 
-            # if self.path.endswith(".html") or self.path.endswith(".ico"):
-            if self.path in ("grott.html", "favicon.ico"):
-                try:
-                    f = open(self.path, "rb")
-                    self.send_response(200)
-                    if self.path.endswith(".ico"):
-                        self.send_header("Content-type", "image/x-icon")
-                    else:
-                        self.send_header("Content-type", "text/html")
-                    self.end_headers()
-                    self.wfile.write(f.read())
-                    f.close()
-                    return
-                except IOError:
-                    responsetxt = (
-                        b"<h2>Welcome to Grott the growatt inverter monitor</h2>\r\n"
-                    )
-                    responsetxt += b"<br><h3>Made by Ledidobe, Johan Meijer</h3>\r\n"
-                    responserc = 200
-                    responseheader = "text/html"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
-                    return
-
-            elif self.path.startswith("datalogger") or self.path.startswith("inverter"):
-                if self.path.startswith("datalogger"):
+            if self.path in ("datalogger", "inverter"):
+                if self.path == "datalogger":
                     if self.verbose:
                         print(
                             "\t - " + "Grotthttpserver - datalogger get received : ",
@@ -431,7 +430,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 htmlsendresp(self, responserc, responseheader, responsetxt)
                 return
             else:
-                self.send_error(400, "Bad request")
+                self.send_error(404)
 
         except Exception as e:
             print(
@@ -439,6 +438,9 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             )
 
     def do_PUT(self):
+        if not self.authorize():
+            return
+
         try:
             # if verbose: print("\t - Grott: datalogger PUT received")
 
@@ -448,9 +450,10 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             # only allow files from current directory
             if self.path[0] == "/":
                 self.path = self.path[1 : len(self.path)]
+            self.path = self.path.split("?")[0]
 
-            if self.path.startswith("datalogger") or self.path.startswith("inverter"):
-                if self.path.startswith("datalogger"):
+            if self.path in ("datalogger", "inverter"):
+                if self.path == "datalogger":
                     if self.verbose:
                         print(
                             "\t - Grotthttpserver - datalogger PUT received : ",
@@ -719,6 +722,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     responseheader = "text/plain"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
+            else:
+                self.send_error(404)
 
         except Exception as e:
             print(
@@ -730,13 +735,15 @@ class GrottHttpServer:
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
+        passwordhasher = PasswordHasher()
+
         def handler_factory(*args):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
             return GrottHttpRequestHandler(
-                send_queuereg, conf, loggerreg, commandresponse, *args
+                send_queuereg, conf, loggerreg, commandresponse, passwordhasher, *args
             )
 
         self.server = http.server.HTTPServer(

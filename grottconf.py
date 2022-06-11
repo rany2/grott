@@ -43,6 +43,7 @@ class Conf:
         # Grott server mode
         self.httphost = "0.0.0.0"
         self.httpport = 5782
+        self.httptoken = None
         self.registerreadtimeout = 7
         self.registerwritetimeout = 15
         self.firstping = False
@@ -493,6 +494,8 @@ class Conf:
             self.httphost = config.get("Server", "httpip")
         if config.has_option("Server", "httpport"):
             self.httpport = config.getint("Server", "httpport")
+        if config.has_option("Server", "httptoken"):
+            self.httptoken = config.get("Server", "httptoken")
         if config.has_option("Server", "registerreadtimeout"):
             self.registerreadtimeout = config.getint("Server", "registerreadtimeout")
         if config.has_option("Server", "registerwritetimeout"):
