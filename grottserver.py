@@ -773,6 +773,7 @@ class sendrecvserver:
         self.inputs = [self.server]
         self.loggerreg = loggerreg
         self.outputs = []
+        self.s_peername = {}
         self.send_queuereg = send_queuereg
         self.verbose = conf.verbose
 
@@ -816,7 +817,7 @@ class sendrecvserver:
 
     def handle_writable_socket(self, s):
         try:
-            client_address, client_port = s.getpeername()
+            client_address, client_port = self.s_peername[s]
 
             try:
                 qname = f"{client_address}_{client_port}"
@@ -876,6 +877,7 @@ class sendrecvserver:
             )
 
             client_address, client_port = connection.getpeername()
+            self.s_peername[connection] = (client_address, client_port)
             qname = f"{client_address}_{client_port}"
 
             # create queue
@@ -921,8 +923,9 @@ class sendrecvserver:
     def close_connection(self, s):
         print("\t - Grottserver - Close connection : ", s)
 
-        try:
-            client_address, client_port = s.getpeername()
+        if s in self.s_peername:
+            client_address, client_port = self.s_peername[s]
+            del self.s_peername[s]
             qname = f"{client_address}_{client_port}"
 
             if qname in self.send_queuereg:
@@ -942,11 +945,6 @@ class sendrecvserver:
                         key,
                     )
                     break
-        except Exception as e:
-            print(
-                "\t - Grottserver - exception in server thread - close_connection - delete config information : ",
-                e,
-            )
 
         try:
             s.close()
@@ -978,7 +976,7 @@ class sendrecvserver:
         # Prevent generic errors:
         try:
             # process data and create response
-            client_address, client_port = s.getpeername()
+            client_address, client_port = self.s_peername[s]
             qname = f"{client_address}_{client_port}"
 
             # Display data
