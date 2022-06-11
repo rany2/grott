@@ -7,6 +7,7 @@ import select
 import socket
 import textwrap
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import cycle
@@ -160,9 +161,7 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
 
 
 class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
-    def __init__(
-        self, send_queuereg, conf, loggerreg, commandresponse, *args
-    ):
+    def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
         self.send_queuereg = send_queuereg
         self.conf = conf
         self.verbose = conf.verbose
@@ -795,6 +794,9 @@ class sendrecvserver:
             for s in exceptional:
                 self.handle_exceptional_socket(s)
 
+            # TODO: find a better way to do this
+            time.sleep(0.001)
+
     def handle_readable_socket(self, s):
         try:
             if s is self.server:
@@ -1044,7 +1046,9 @@ class sendrecvserver:
             elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
                 # if datarecord send ack.
                 if self.verbose:
-                    print("\t - Grottserver - " + header[12:16] + " data record received")
+                    print(
+                        "\t - Grottserver - " + header[12:16] + " data record received"
+                    )
 
                 # forward data for growatt
                 self.forward_data(s, data)
