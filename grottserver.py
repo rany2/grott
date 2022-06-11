@@ -321,12 +321,15 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 # test if register is specified and set reg value.
                 if command == "register":
                     # test if valid reg is applied
-                    if (
-                        int(urlquery["register"][0]) >= 0
-                        and int(urlquery["register"][0]) < 1024
-                    ):
-                        register = urlquery["register"][0]
-                    else:
+                    try:
+                        if (
+                            int(urlquery["register"][0]) >= 0
+                            and int(urlquery["register"][0]) < 1024
+                        ):
+                            register = urlquery["register"][0]
+                        else:
+                            raise ValueError("invalid register value")
+                    except Exception:
                         responsetxt = b"invalid reg value specified\r\n"
                         responserc = 400
                         responseheader = "text/plain"
