@@ -134,6 +134,28 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
     return body
 
 
+def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
+    if "queue" not in commandresponse[qname]:
+        commandresponse[qname]["queue"] = {}
+    
+    if sendcommand not in commandresponse[qname]["queue"]:
+        commandresponse[qname]["queue"][sendcommand] = {}
+    
+    if regkey not in commandresponse[qname]["queue"][sendcommand]:
+        commandresponse[qname]["queue"][sendcommand][regkey] = queue.Queue()
+
+def queue_commandrespclear(commandresponse, qname, sendcommand, regkey):
+    queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
+    commandresponse[qname]["queue"][sendcommand][regkey].queue.clear()
+
+def queue_commandrespadd(commandresponse, qname, sendcommand, regkey, value):
+    queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
+    commandresponse[qname]["queue"][sendcommand][regkey].put_nowait(value)
+
+def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0):
+    queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
+    return commandresponse[qname]["queue"][sendcommand][regkey].get(timeout=timeout)
+
 class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
     def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
         self.send_queuereg = send_queuereg
@@ -364,30 +386,29 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     del self.commandresponse[qname][sendcommand][regkey]
                 except Exception:
                     pass
+                queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
 
                 # wait for response
                 if self.verbose:
                     print("\t - Grotthttpserver - wait for GET response")
-                for _ in range(self.conf.registerreadtimeout * 100):
-                    try:
-                        comresp = self.commandresponse[qname][sendcommand][regkey]
+                try:
+                    comresp = queue_commandrespget(self.commandresponse, qname, sendcommand, regkey, self.conf.registerreadtimeout)
 
-                        if sendcommand == "05":
-                            if formatval == "dec":
-                                comresp["value"] = int(comresp["value"], 16)
-                            elif formatval == "text":
-                                comresp["value"] = codecs.decode(
-                                    comresp["value"], "hex"
-                                ).decode("utf-8")
-                        responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
-                        responserc = 200
-                        responseheader = "application/json"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
+                    if sendcommand == "05":
+                        if formatval == "dec":
+                            comresp["value"] = int(comresp["value"], 16)
+                        elif formatval == "text":
+                            comresp["value"] = codecs.decode(
+                                comresp["value"], "hex"
+                            ).decode("utf-8")
+                    responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
+                    responserc = 200
+                    responseheader = "application/json"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
-                    except Exception:
-                        # wait for 0.01 second and try again
-                        time.sleep(0.01)
+                except Exception:
+                    pass
                 try:
                     if comresp:
                         responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
@@ -1127,6 +1148,7 @@ class sendrecvserver:
                 else:
                     # command 05 or 19
                     self.commandresponse[qname][command][regkey] = {"value": value}
+                    queue_commandrespadd(self.commandresponse, qname, command, regkey, {"value": value})
 
                 response = None
 
