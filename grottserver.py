@@ -1,4 +1,5 @@
 import codecs
+import hashlib
 import http.server
 import json
 import queue
@@ -13,7 +14,6 @@ from urllib.parse import parse_qs, urlparse
 
 import libscrc
 import pytz
-from argon2 import PasswordHasher
 
 from grottdata import procdata as grottdata
 from grottproxy import Forward
@@ -161,14 +161,13 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
 
 class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
     def __init__(
-        self, send_queuereg, conf, loggerreg, commandresponse, passwordhasher, *args
+        self, send_queuereg, conf, loggerreg, commandresponse, *args
     ):
         self.send_queuereg = send_queuereg
         self.conf = conf
         self.verbose = conf.verbose
         self.loggerreg = loggerreg
         self.commandresponse = commandresponse
-        self.passwordhasher = passwordhasher
         super().__init__(*args)
 
     def authorize(self):
@@ -178,18 +177,22 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 authorization = self.headers["Authorization"]
                 if authorization.split(" ")[0] != "Bearer":
                     raise ValueError("Invalid authorization header")
-                return self.passwordhasher.verify(
-                    token, " ".join(authorization.split(" ")[1:])
-                )
+
+                token_hash = hashlib.sha256(
+                    " ".join(authorization.split(" ")[1:]).encode("utf-8")
+                ).hexdigest()
+                if token_hash != token:
+                    raise ValueError("Incorrect token")
+                else:
+                    return True
             else:
                 return True
-        except Exception as e:
+        except Exception:
             self.send_error(401, "Unauthorized")
             return False
 
     def do_GET(self):
         if not self.authorize():
-            print(self.authorize())
             return
 
         try:
@@ -735,15 +738,13 @@ class GrottHttpServer:
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
-        passwordhasher = PasswordHasher()
-
         def handler_factory(*args):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
             return GrottHttpRequestHandler(
-                send_queuereg, conf, loggerreg, commandresponse, passwordhasher, *args
+                send_queuereg, conf, loggerreg, commandresponse, *args
             )
 
         self.server = http.server.HTTPServer(
