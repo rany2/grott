@@ -53,7 +53,6 @@ def decrypt(decdata):
 
     result_string = "".join(f"{n:02x}" for n in unscrambled)
 
-    print("\t - " + "Grott - data decrypted V2")
     return result_string
 
 

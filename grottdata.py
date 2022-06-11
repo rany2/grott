@@ -50,7 +50,6 @@ def decrypt(decdata):
 
     result_string = "".join(f"{n:02x}" for n in unscrambled)
 
-    print("\t - " + "Growatt data decrypted V2")
     return result_string
 
 
