@@ -908,16 +908,23 @@ class sendrecvserver:
 
             if s in self.outputs:
                 self.outputs.remove(s)
-            self.inputs.remove(s)
+
+            if s in self.inputs:
+                self.inputs.remove(s)
 
             if s in self.forward_input:
                 fsock, host, port = self.forward_input[s]
+                del self.forward_input[s]
                 fsock.close()
 
             client_address, client_port = s.getpeername()
             qname = f"{client_address}_{client_port}"
-            del self.send_queuereg[qname]
-            del self.commandresponse[qname]
+
+            if qname in self.send_queuereg:
+                del self.send_queuereg[qname]
+
+            if qname in self.commandresponse:
+                del self.commandresponse[qname]
 
             for key in self.loggerreg.keys():
                 if (
