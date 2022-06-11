@@ -137,24 +137,28 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
 def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
     if "queue" not in commandresponse[qname]:
         commandresponse[qname]["queue"] = {}
-    
+
     if sendcommand not in commandresponse[qname]["queue"]:
         commandresponse[qname]["queue"][sendcommand] = {}
-    
+
     if regkey not in commandresponse[qname]["queue"][sendcommand]:
         commandresponse[qname]["queue"][sendcommand][regkey] = queue.Queue()
+
 
 def queue_commandrespclear(commandresponse, qname, sendcommand, regkey):
     queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
     commandresponse[qname]["queue"][sendcommand][regkey].queue.clear()
 
+
 def queue_commandrespadd(commandresponse, qname, sendcommand, regkey, value):
-    queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
+    queue_commandrespclear(commandresponse, qname, sendcommand, regkey)
     commandresponse[qname]["queue"][sendcommand][regkey].put_nowait(value)
+
 
 def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0):
     queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
     return commandresponse[qname]["queue"][sendcommand][regkey].get(timeout=timeout)
+
 
 class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
     def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
@@ -391,9 +395,15 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 # wait for response
                 if self.verbose:
                     print("\t - Grotthttpserver - wait for GET response")
-                try:
-                    comresp = queue_commandrespget(self.commandresponse, qname, sendcommand, regkey, self.conf.registerreadtimeout)
 
+                try:
+                    comresp = queue_commandrespget(
+                        self.commandresponse,
+                        qname,
+                        sendcommand,
+                        regkey,
+                        self.conf.registerreadtimeout,
+                    )
                     if sendcommand == "05":
                         if formatval == "dec":
                             comresp["value"] = int(comresp["value"], 16)
@@ -406,36 +416,12 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-
-                except Exception:
-                    pass
-                try:
-                    if comresp:
-                        responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
-                        responserc = 200
-                        responseheader = "application/json"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                except Exception:
+                except queue.Full:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-
-                responsetxt = b"OK\r\n"
-                responserc = 200
-                responseheader = "text/plain"
-                if self.verbose:
-                    print(
-                        "\t - " + "Grott: datalogger command response :",
-                        responserc,
-                        responsetxt,
-                        responseheader,
-                    )
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
 
             elif self.path == "help":
                 responserc = 200
@@ -689,62 +675,49 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 try:
                     # delete response: be aware a 18 command give 19 response,
                     # 06 send command gives 06 response in differnt format!
-                    if sendcommand == "18":
-                        del self.commandresponse[qname][sendcommand][regkey]
-                    else:
-                        del self.commandresponse[qname][sendcommand][regkey]
+                    del self.commandresponse[qname][sendcommand][regkey]
                 except Exception:
                     pass
+                queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
 
                 # wait for response
                 if self.verbose:
                     print("\t - Grotthttpserver - wait for PUT response")
-                for _ in range(self.conf.registerwritetimeout * 100):
-                    try:
-                        # read response: be aware a 18 command give 19 response,
-                        # 06 send command gives 06 response in differnt format!
-                        if sendcommand == "18":
-                            comresp = self.commandresponse[qname]["18"][regkey]
-                        else:
-                            comresp = self.commandresponse[qname][sendcommand][regkey]
-                        if self.verbose:
-                            print(
-                                "\t - " + "Grotthttperver - Commandresponse ",
-                                responseno,
-                                register,
-                                self.commandresponse[qname][sendcommand][regkey],
-                            )
-                        break
-                    except Exception:
-                        # wait for 0.01 second and try again
-                        time.sleep(0.01)
                 try:
-                    if comresp != "":
-                        responsetxt = b"OK\r\n"
-                        responserc = 200
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                except Exception:
+                    # read response: be aware a 18 command give 19 response,
+                    # 06 send command gives 06 response in differnt format!
+                    comresp = queue_commandrespget(
+                        self.commandresponse,
+                        qname,
+                        sendcommand,
+                        regkey,
+                        self.conf.registerwritetimeout,
+                    )
+                    if self.verbose:
+                        print(
+                            "\t - " + "Grotthttperver - Commandresponse ",
+                            responseno,
+                            register,
+                            self.commandresponse[qname][sendcommand][regkey],
+                        )
+                    responsetxt = b"OK\r\n"
+                    responserc = 200
+                    responseheader = "text/plain"
+                    if self.verbose:
+                        print(
+                            "\t - " + "Grott: datalogger command response :",
+                            responserc,
+                            responsetxt,
+                            responseheader,
+                        )
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+                except queue.Full:
                     responsetxt = b"no or invalid response received\r\n"
                     responserc = 400
                     responseheader = "text/plain"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-
-                responsetxt = b"OK\r\n"
-                responserc = 200
-                responseheader = "text/plain"
-                if self.verbose:
-                    print(
-                        "\t - " + "Grott: datalogger command response :",
-                        responserc,
-                        responsetxt,
-                        responseheader,
-                    )
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
 
         except Exception as e:
             print(
@@ -1101,7 +1074,11 @@ class sendrecvserver:
                     )
                     self.send_queuereg[qname].put_nowait(response)
                     response = createtimecommand(
-                        self.conf, protocol, loggerid, "0001", self.commandresponse[qname]
+                        self.conf,
+                        protocol,
+                        loggerid,
+                        "0001",
+                        self.commandresponse[qname],
                     )
                     if self.verbose:
                         print("\t - Grottserver 03 announce data record processed")
@@ -1142,13 +1119,25 @@ class sendrecvserver:
                         "value": value,
                         "result": result,
                     }
+                    queue_commandrespadd(
+                        self.commandresponse,
+                        qname,
+                        command,
+                        regkey,
+                        {"value": value, "result": result},
+                    )
                     self.commandresponse[qname]["05"][regkey] = {"value": value}
                 if command == "18":
                     self.commandresponse[qname]["18"][regkey] = {"result": result}
+                    queue_commandrespadd(
+                        self.commandresponse, qname, command, regkey, {"result": result}
+                    )
                 else:
                     # command 05 or 19
                     self.commandresponse[qname][command][regkey] = {"value": value}
-                    queue_commandrespadd(self.commandresponse, qname, command, regkey, {"value": value})
+                    queue_commandrespadd(
+                        self.commandresponse, qname, command, regkey, {"value": value}
+                    )
 
                 response = None
 
