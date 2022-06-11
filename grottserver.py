@@ -846,47 +846,52 @@ class sendrecvserver:
     def handle_new_connection(self, s):
         try:
             connection, client_address = s.accept()
+
             self.inputs.append(connection)
             self.outputs.append(connection)
+
             self.forward_input[connection] = ()
             if self.conf.serverforward:
+                # Even if the forward failed and Forward().start returned False bool
+                # forward_data would reattempt to connect to the growattip:growattport
+                # and try to forward the data again. So we should add it without checking
+                # the return value of Forward().start
                 forward = Forward().start(self.conf.growattip, self.conf.growattport)
-                if forward:
-                    if self.verbose:
-                        print(
-                            "\t - " + "Grottserver - Forward started: ",
-                            self.conf.growattip,
-                            self.conf.growattport,
-                        )
-                    self.forward_input[connection] = (
-                        forward,
-                        self.conf.growattip,
-                        self.conf.growattport,
-                    )
-                else:
+
+                self.forward_input[connection] = (
+                    forward,
+                    self.conf.growattip,
+                    self.conf.growattport,
+                )
+
+                if self.verbose:
                     print(
-                        "\t - " + "Grottserver - Forward failed: ",
+                        "\t - " + "Grottserver - Forward started: ",
                         self.conf.growattip,
                         self.conf.growattport,
                     )
+
             print(
                 f"\t - Grottserver - Socket connection received from {client_address}"
             )
+
             client_address, client_port = connection.getpeername()
             qname = f"{client_address}_{client_port}"
 
             # create queue
             self.send_queuereg[qname] = queue.Queue()
+            if self.verbose:
+                print(f"\t - Grottserver - Send queue created for : {qname}")
             # create command response
             self.commandresponse[qname] = defaultdict(dict)
             if self.verbose:
-                print(f"\t - Grottserver - Send queue created for : {qname}")
+                print(f"\t - Grottserver - Command response created for : {qname}")
         except Exception as e:
             print(
                 "\t - Grottserver - exception in server thread - handle_new_connection : ",
                 e,
             )
-            # self.close_connection(s)
+            self.close_connection(s)
 
     def forward_data(self, s, data, attempts=0):
         if not self.forward_input[s]:
@@ -894,9 +899,13 @@ class sendrecvserver:
         fsock, host, port = self.forward_input[s]
         try:
             fsock.send(data)
-            print(f"\t - Grottserver - Forward data sent for {host}:{port}")
-        except Exception as e:
-            fsock.close()
+            if self.verbose:
+                print(f"\t - Grottserver - Forward data sent for {host}:{port}")
+        except Exception:
+            try:
+                fsock.close()
+            except Exception:
+                pass
             del self.forward_input[s]
 
             forward = Forward().start(host, port)
@@ -910,21 +919,9 @@ class sendrecvserver:
                     print("\t - Grottserver - Forward failed: ", host, port)
 
     def close_connection(self, s):
+        print("\t - Grottserver - Close connection : ", s)
+
         try:
-            print("\t - Grottserver - Close connection : ", s)
-            s.close()
-
-            if s in self.outputs:
-                self.outputs.remove(s)
-
-            if s in self.inputs:
-                self.inputs.remove(s)
-
-            if s in self.forward_input:
-                fsock, host, port = self.forward_input[s]
-                del self.forward_input[s]
-                fsock.close()
-
             client_address, client_port = s.getpeername()
             qname = f"{client_address}_{client_port}"
 
@@ -945,12 +942,36 @@ class sendrecvserver:
                         key,
                     )
                     break
-
         except Exception as e:
             print(
-                "\t - Grottserver - exception in server thread - close connection :", e
+                "\t - Grottserver - exception in server thread - close_connection - delete config information : ",
+                e,
             )
+
+        try:
             s.close()
+        except Exception as e:
+            print(
+                "\t - Grottserver - exception in server thread - close_connection - close socket : ",
+                e,
+            )
+
+        if s in self.outputs:
+            self.outputs.remove(s)
+
+        if s in self.inputs:
+            self.inputs.remove(s)
+
+        if s in self.forward_input:
+            fsock, host, port = self.forward_input[s]
+            del self.forward_input[s]
+            try:
+                fsock.close()
+            except Exception as e:
+                print(
+                    "\t - Grottserver - exception in server thread - close_connection - close forward socket : ",
+                    e,
+                )
 
     def process_data(self, s, data):
 
@@ -961,10 +982,10 @@ class sendrecvserver:
             qname = f"{client_address}_{client_port}"
 
             # Display data
-            print(
-                f"\t - Grottserver - Data received from : {client_address}:{client_port}"
-            )
             if self.verbose:
+                print(
+                    f"\t - Grottserver - Data received from : {client_address}:{client_port}"
+                )
                 print("\t - " + "Grottserver - Original Data:")
                 print(format_multi_line("\t\t ", data))
 
@@ -1024,7 +1045,8 @@ class sendrecvserver:
 
             elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
                 # if datarecord send ack.
-                print("\t - Grottserver - " + header[12:16] + " data record received")
+                if self.verbose:
+                    print("\t - Grottserver - " + header[12:16] + " data record received")
 
                 # forward data for growatt
                 self.forward_data(s, data)
@@ -1128,7 +1150,8 @@ class sendrecvserver:
 
                 regkey = f"{register:04x}"
                 if command == "06":
-                    # command 06 response has ack (result) + value. We will create a 06 response and a 05 response (for reg administration)
+                    # command 06 response has ack (result) + value. We will create a
+                    # 06 response and a 05 response (for reg administration)
                     self.commandresponse[qname]["06"][regkey] = {
                         "value": value,
                         "result": result,

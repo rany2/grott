@@ -925,8 +925,9 @@ def procdata(conf, data):
         # Create list for influx
         ifjson = [ifobj]
 
-        print("\t - " + "Grott influxdb jsonmsg: ")
-        print(format_multi_line("\t\t\t ", str(ifjson)))
+        if conf.verbose:
+            print("\t - " + "Grott influxdb jsonmsg: ")
+            print(format_multi_line("\t\t\t ", str(ifjson)))
         # if conf.verbose :  print("\t - " + "Grott InfluxDB publihing started")
 
         try:
