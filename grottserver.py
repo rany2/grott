@@ -6,7 +6,6 @@ import select
 import socket
 import textwrap
 import threading
-import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import cycle
