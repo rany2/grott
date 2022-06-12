@@ -892,13 +892,14 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             if self.forward_input:
                 fsock, host, port = self.forward_input
                 del self.forward_input
-                try:
-                    fsock.close()
-                except Exception as e:
-                    print(
-                        "\t - Grottserver - exception in server thread - close_connection - close forward socket : ",
-                        e,
-                    )
+                if fsock != False:
+                    try:
+                        fsock.close()
+                    except Exception as e:
+                        print(
+                            "\t - Grottserver - exception in server thread - close_connection - close forward socket : ",
+                            e,
+                        )
         finally:
             raise SystemExit(0)
 
