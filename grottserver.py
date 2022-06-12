@@ -856,14 +856,13 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             del self.forward_input
 
             forward = Forward().start(host, port)
-            if forward:
-                if self.verbose:
-                    print("\t - Grottserver - Forward started: ", host, port)
-                self.forward_input = (forward, host, port)
-                if attempts < 3:
-                    self.forward_data(data, attempts + 1)
-                else:
-                    print("\t - Grottserver - Forward failed: ", host, port)
+            if self.verbose:
+                print("\t - Grottserver - Forward started: ", host, port)
+            self.forward_input = (forward, host, port)
+            if attempts < 3:
+                self.forward_data(data, attempts + 1)
+            else:
+                print("\t - Grottserver - Forward failed: ", host, port)
 
     def close_connection(self):
         try:
