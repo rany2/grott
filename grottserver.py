@@ -3,11 +3,9 @@ import hashlib
 import http.server
 import json
 import queue
-import select
-import socket
+import socketserver
 import textwrap
 import threading
-import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import cycle
@@ -754,153 +752,98 @@ class GrottHttpServer:
             f"\t - GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}"
         )
 
-    def run(self):
-        print("\t - GrottHttpserver - server listening")
-        self.server.serve_forever()
+
+class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address: bool = True
 
 
-class sendrecvserver:
-    def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server.bind((conf.grottip, conf.grottport))
-        self.server.listen(5)
+class GrowattServerHandler(socketserver.BaseRequestHandler):
+    def setup(self):
+        self.verbose = self.conf.verbose
 
-        self.commandresponse = commandresponse
-        self.conf = conf
-        self.forward_input = {}
-        self.inputs = [self.server]
-        self.loggerreg = loggerreg
-        self.outputs = []
-        self.s_peername = {}
-        self.send_queuereg = send_queuereg
-        self.verbose = conf.verbose
+        self.forward_input = ()
+        if self.conf.serverforward:
+            # Even if the forward failed and Forward().start returned False bool
+            # forward_data would reattempt to connect to the growattip:growattport
+            # and try to forward the data again. So we should add it without checking
+            # the return value of Forward().start
+            forward = Forward().start(self.conf.growattip, self.conf.growattport)
 
-        print(f"\t - Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
-
-    def run(self):
-        print("\t - Grottserver - server listening")
-        while self.inputs:
-            readable, writable, exceptional = select.select(
-                self.inputs, self.outputs, self.inputs
+            self.forward_input = (
+                forward,
+                self.conf.growattip,
+                self.conf.growattport,
             )
 
-            for s in readable:
-                self.handle_readable_socket(s)
-
-            for s in writable:
-                self.handle_writable_socket(s)
-
-            for s in exceptional:
-                self.handle_exceptional_socket(s)
-
-            # TODO: find a better way to do this
-            time.sleep(0.001)
-
-    def handle_readable_socket(self, s):
-        try:
-            if s is self.server:
-                self.handle_new_connection(s)
-                if self.verbose:
-                    print("\t - " + "Grottserver - input received: ", self.server)
-            else:
-                # Existing connection
-                data = s.recv(1024)
-                if data:
-                    self.process_data(s, data)
-                else:
-                    self.close_connection(s)
-        except Exception as e:
-            print(
-                "\t - Grottserver - exception in server thread - handle_readable_socket : ",
-                e,
-            )
-            self.close_connection(s)
-
-    def handle_writable_socket(self, s):
-        try:
-            client_address, client_port = self.s_peername[s]
-
-            try:
-                qname = f"{client_address}_{client_port}"
-                next_msg = self.send_queuereg[qname].get_nowait()
-                if self.verbose:
-                    print(
-                        "\t - " + "Grottserver - get response from queue: ",
-                        qname + " msg: ",
-                    )
-                    print(format_multi_line("\t\t ", next_msg))
-                s.send(next_msg)
-            except queue.Empty:
-                pass
-
-        except Exception as e:
-            print(
-                "\t - Grottserver - exception in server thread - handle_writable_socket : ",
-                e,
-            )
-            self.close_connection(s)
-
-    def handle_exceptional_socket(self, s):
-        if self.verbose:
-            print("\t - " + "Grottserver - Encountered an exception")
-        self.close_connection(s)
-
-    def handle_new_connection(self, s):
-        try:
-            connection, client_address = s.accept()
-
-            self.inputs.append(connection)
-            self.outputs.append(connection)
-
-            self.forward_input[connection] = ()
-            if self.conf.serverforward:
-                # Even if the forward failed and Forward().start returned False bool
-                # forward_data would reattempt to connect to the growattip:growattport
-                # and try to forward the data again. So we should add it without checking
-                # the return value of Forward().start
-                forward = Forward().start(self.conf.growattip, self.conf.growattport)
-
-                self.forward_input[connection] = (
-                    forward,
+            if self.verbose:
+                print(
+                    "\t - " + "Grottserver - Forward started: ",
                     self.conf.growattip,
                     self.conf.growattport,
                 )
 
-                if self.verbose:
-                    print(
-                        "\t - " + "Grottserver - Forward started: ",
-                        self.conf.growattip,
-                        self.conf.growattport,
-                    )
+        self.qname = f"{self.client_address[0]}_{self.client_address[1]}"
 
-            print(
-                f"\t - Grottserver - Socket connection received from {client_address}"
-            )
+        # create queue
+        self.send_queuereg[self.qname] = queue.Queue()
+        if self.verbose:
+            print(f"\t - Grottserver - Send queue created for : {self.qname}")
 
-            client_address, client_port = connection.getpeername()
-            self.s_peername[connection] = (client_address, client_port)
-            qname = f"{client_address}_{client_port}"
+        # create command response
+        self.commandresponse[self.qname] = defaultdict(dict)
+        if self.verbose:
+            print(f"\t - Grottserver - Command response created for : {self.qname}")
 
-            # create queue
-            self.send_queuereg[qname] = queue.Queue()
-            if self.verbose:
-                print(f"\t - Grottserver - Send queue created for : {qname}")
-            # create command response
-            self.commandresponse[qname] = defaultdict(dict)
-            if self.verbose:
-                print(f"\t - Grottserver - Command response created for : {qname}")
-        except Exception as e:
-            print(
-                "\t - Grottserver - exception in server thread - handle_new_connection : ",
-                e,
-            )
-            self.close_connection(s)
+        # on any value, shutdown everything
+        self.shutdown_queue = queue.Queue()
 
-    def forward_data(self, s, data, attempts=0):
-        if not self.forward_input[s]:
+    def handle(self):
+        if self.verbose:
+            print(f"\t - Grottserver - Client connected: {self.client_address}")
+
+        # create read and write threads
+        read_thread = threading.Thread(
+            target=self.read_data,
+        )
+        write_thread = threading.Thread(
+            target=self.write_data,
+        )
+
+        # make sure the threads are stopped when the main thread exits
+        read_thread.daemon = True
+        write_thread.daemon = True
+
+        # start threads
+        read_thread.start()
+        write_thread.start()
+
+        # wait for self.shutdown_queue to be filled
+        self.shutdown_queue.get()
+        return self.close_connection()
+
+    def read_data(self):
+        try:
+            while True:
+                data = self.request.recv(1024)
+                if not data:
+                    self.shutdown_queue.put_nowait(True)
+                    break
+                self.process_data(data)
+        except Exception:
+            self.shutdown_queue.put_nowait(True)
+
+    def write_data(self):
+        try:
+            while True:
+                data = self.send_queuereg[self.qname].get()
+                self.request.sendall(data)
+        except Exception:
+            self.shutdown_queue.put_nowait(True)
+
+    def forward_data(self, data, attempts=0):
+        if not self.forward_input:
             return
-        fsock, host, port = self.forward_input[s]
+        fsock, host, port = self.forward_input
         try:
             fsock.send(data)
             if self.verbose:
@@ -910,31 +853,29 @@ class sendrecvserver:
                 fsock.close()
             except Exception:
                 pass
-            del self.forward_input[s]
+            del self.forward_input
 
             forward = Forward().start(host, port)
             if forward:
                 if self.verbose:
                     print("\t - Grottserver - Forward started: ", host, port)
-                self.forward_input[s] = (forward, host, port)
+                self.forward_input = (forward, host, port)
                 if attempts < 3:
-                    self.forward_data(s, data, attempts + 1)
+                    self.forward_data(data, attempts + 1)
                 else:
                     print("\t - Grottserver - Forward failed: ", host, port)
 
-    def close_connection(self, s):
-        print("\t - Grottserver - Close connection : ", s)
+    def close_connection(self):
+        try:
+            print("\t - Grottserver - Close connection : ", self.client_address)
 
-        if s in self.s_peername:
-            client_address, client_port = self.s_peername[s]
-            del self.s_peername[s]
-            qname = f"{client_address}_{client_port}"
+            client_address, client_port = self.client_address
 
-            if qname in self.send_queuereg:
-                del self.send_queuereg[qname]
+            if self.qname in self.send_queuereg:
+                del self.send_queuereg[self.qname]
 
-            if qname in self.commandresponse:
-                del self.commandresponse[qname]
+            if self.qname in self.commandresponse:
+                del self.commandresponse[self.qname]
 
             for key in self.loggerreg.keys():
                 if (
@@ -948,44 +889,25 @@ class sendrecvserver:
                     )
                     break
 
-        try:
-            s.close()
-        except Exception as e:
-            print(
-                "\t - Grottserver - exception in server thread - close_connection - close socket : ",
-                e,
-            )
+            if self.forward_input:
+                fsock, host, port = self.forward_input
+                del self.forward_input
+                try:
+                    fsock.close()
+                except Exception as e:
+                    print(
+                        "\t - Grottserver - exception in server thread - close_connection - close forward socket : ",
+                        e,
+                    )
+        finally:
+            raise SystemExit(0)
 
-        if s in self.outputs:
-            self.outputs.remove(s)
-
-        if s in self.inputs:
-            self.inputs.remove(s)
-
-        if s in self.forward_input:
-            fsock, host, port = self.forward_input[s]
-            del self.forward_input[s]
-            try:
-                fsock.close()
-            except Exception as e:
-                print(
-                    "\t - Grottserver - exception in server thread - close_connection - close forward socket : ",
-                    e,
-                )
-
-    def process_data(self, s, data):
-
+    def process_data(self, data):
         # Prevent generic errors:
         try:
-            # process data and create response
-            client_address, client_port = self.s_peername[s]
-            qname = f"{client_address}_{client_port}"
-
             # Display data
             if self.verbose:
-                print(
-                    f"\t - Grottserver - Data received from : {client_address}:{client_port}"
-                )
+                print(f"\t - Grottserver - Data received from : {self.qname}")
                 print("\t - " + "Grottserver - Original Data:")
                 print(format_multi_line("\t\t ", data))
 
@@ -1004,7 +926,7 @@ class sendrecvserver:
                     " expected: ",
                     int.from_bytes(crc16, "big"),
                 )
-                self.close_connection(s)
+                self.shutdown_queue.put_nowait(True)
                 return
 
             # Collect data for MQTT, PVOutput, InfluxDB, etc..
@@ -1041,7 +963,7 @@ class sendrecvserver:
                     print(format_multi_line("\t\t ", response))
 
                 # forward data for growatt
-                self.forward_data(s, data)
+                self.forward_data(data)
 
             elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
                 # if datarecord send ack.
@@ -1051,7 +973,7 @@ class sendrecvserver:
                     )
 
                 # forward data for growatt
-                self.forward_data(s, data)
+                self.forward_data(data)
 
                 # create ack response
                 if header[6:8] == "02":
@@ -1094,15 +1016,15 @@ class sendrecvserver:
                     try:
                         self.loggerreg[loggerid].update(
                             {
-                                "ip": client_address,
-                                "port": client_port,
+                                "ip": self.client_address[0],
+                                "port": self.client_address[1],
                                 "protocol": header[6:8],
                             }
                         )
                     except Exception:
                         self.loggerreg[loggerid] = {
-                            "ip": client_address,
-                            "port": client_port,
+                            "ip": self.client_address[0],
+                            "port": self.client_address[1],
                             "protocol": header[6:8],
                         }
 
@@ -1110,13 +1032,13 @@ class sendrecvserver:
                     self.loggerreg[loggerid].update(
                         {inverterid: {"inverterno": header[12:14], "power": 0}}
                     )
-                    self.send_queuereg[qname].put_nowait(response)
+                    self.send_queuereg[self.qname].put_nowait(response)
                     response = createtimecommand(
                         self.conf,
                         protocol,
                         loggerid,
                         "0001",
-                        self.commandresponse[qname],
+                        self.commandresponse[self.qname],
                     )
                     if self.verbose:
                         print("\t - Grottserver 03 announce data record processed")
@@ -1154,28 +1076,36 @@ class sendrecvserver:
                 if command == "06":
                     # command 06 response has ack (result) + value. We will create a
                     # 06 response and a 05 response (for reg administration)
-                    self.commandresponse[qname]["06"][regkey] = {
+                    self.commandresponse[self.qname]["06"][regkey] = {
                         "value": value,
                         "result": result,
                     }
                     queue_commandrespadd(
                         self.commandresponse,
-                        qname,
+                        self.qname,
                         command,
                         regkey,
                         {"value": value, "result": result},
                     )
-                    self.commandresponse[qname]["05"][regkey] = {"value": value}
+                    self.commandresponse[self.qname]["05"][regkey] = {"value": value}
                 if command == "18":
-                    self.commandresponse[qname]["18"][regkey] = {"result": result}
+                    self.commandresponse[self.qname]["18"][regkey] = {"result": result}
                     queue_commandrespadd(
-                        self.commandresponse, qname, command, regkey, {"result": result}
+                        self.commandresponse,
+                        self.qname,
+                        command,
+                        regkey,
+                        {"result": result},
                     )
                 else:
                     # command 05 or 19
-                    self.commandresponse[qname][command][regkey] = {"value": value}
+                    self.commandresponse[self.qname][command][regkey] = {"value": value}
                     queue_commandrespadd(
-                        self.commandresponse, qname, command, regkey, {"value": value}
+                        self.commandresponse,
+                        self.qname,
+                        command,
+                        regkey,
+                        {"value": value},
                     )
 
                 response = None
@@ -1187,9 +1117,13 @@ class sendrecvserver:
 
             if response is not None:
                 if self.verbose:
-                    print("\t - Grottserver - Put response on queue: ", qname, " msg: ")
+                    print(
+                        "\t - Grottserver - Put response on queue: ",
+                        self.qname,
+                        " msg: ",
+                    )
                     print(format_multi_line("\t\t ", response))
-                self.send_queuereg[qname].put_nowait(response)
+                self.send_queuereg[self.qname].put_nowait(response)
         except Exception as e:
             print("\t - Grottserver - exception in main server thread occured : ", e)
 
@@ -1208,15 +1142,33 @@ class Server:
         http_server = GrottHttpServer(
             conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
-        device_server = sendrecvserver(
-            conf, self.send_queuereg, self.loggerreg, self.commandresponse
+
+        device_server_handler = GrowattServerHandler
+        device_server_handler.conf = conf
+        device_server_handler.send_queuereg = self.send_queuereg
+        device_server_handler.loggerreg = self.loggerreg
+        device_server_handler.commandresponse = self.commandresponse
+        device_server = GrowattServer(
+            (conf.grottip, conf.grottport), device_server_handler
         )
 
-        http_server_thread = threading.Thread(target=http_server.run)
-        device_server_thread = threading.Thread(target=device_server.run)
+        try:
+            http_server_thread = threading.Thread(
+                target=http_server.server.serve_forever
+            )
+            http_server_thread.daemon = True
+            http_server_thread.start()
 
-        http_server_thread.start()
-        device_server_thread.start()
+            device_server_thread = threading.Thread(target=device_server.serve_forever)
+            device_server_thread.daemon = True
+            device_server_thread.start()
+            print(
+                f"\t - Grottserver - Ready to listen at {conf.grottip}:{conf.grottport}"
+            )
 
-        http_server_thread.join()
-        device_server_thread.join()
+            http_server_thread.join()
+            device_server_thread.join()
+        except KeyboardInterrupt:
+            print("\t - Grottserver - KeyboardInterrupt received, shutting down")
+            http_server.server.shutdown()
+            device_server.shutdown()
