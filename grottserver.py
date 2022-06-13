@@ -531,7 +531,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     # input in Hex
                     value = int(value, 16)
 
-                if not 0 < value < 65535 or value is None:
+                if not 0 <= value <= 65535 or value is None:
                     responsetxt = b"invalid value specified\r\n"
                     responserc = 400
                     responseheader = "text/plain"
