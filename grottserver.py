@@ -88,14 +88,14 @@ def getcurrenttime(conf):
 
 
 def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
-    bodybytes = loggerid.encode("utf-8")
+    bodybytes = loggerid.encode("ascii")
     body = bodybytes.hex()
     if protocol == "06":
         body = body + "0000000000000000000000000000000000000000"
     register = 31
     body = body + f"{int(register):04x}"
     currenttime = getcurrenttime(conf)
-    timex = currenttime.encode("utf-8").hex()
+    timex = currenttime.encode("ascii").hex()
     timel = f"{int(len(timex) / 2):04x}"
     body = body + timel + timex
     # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
@@ -186,9 +186,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def match_invertid_to_dataloggerid(self, urlquery):
         dataloggerid = None
-        formatval = None
-
         inverterid_found = False
+
         try:
             # test if inverter id is specified and get loggerid
             inverterid = urlquery["inverter"][0]
@@ -224,6 +223,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         return dataloggerid, formatval
 
     def validate_dataloggerid(self, urlquery):
+        dataloggerid = None
+
         try:
             # Verify dataloggerid is specified
             dataloggerid = urlquery["datalogger"][0]
@@ -233,14 +234,14 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             responserc = 400
             responseheader = "text/plain"
             htmlsendresp(self, responserc, responseheader, responsetxt)
-            return None, None
+            return None
 
         if dataloggerid is None:
             responsetxt = b"no datalogger id specified\r\n"
             responserc = 400
             responseheader = "text/plain"
             htmlsendresp(self, responserc, responseheader, responsetxt)
-            return None, None
+            return None
 
         return dataloggerid
 
@@ -351,7 +352,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 htmlsendresp(self, responserc, responseheader, responsetxt)
                 return
 
-            bodybytes = dataloggerid.encode("utf-8")
+            bodybytes = dataloggerid.encode("ascii")
             body = bodybytes.hex()
 
             if self.loggerreg[dataloggerid]["protocol"] == "06":
@@ -410,7 +411,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     elif formatval == "text":
                         comresp["value"] = codecs.decode(
                             comresp["value"], "hex"
-                        ).decode("utf-8")
+                        ).decode("ascii", "backslashreplace")
                     elif formatval == "hex":
                         # comresp["value"] already in hex,
                         # no need to do anything.
@@ -554,12 +555,15 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                     value = int(value)
                 elif formatval == "text":
                     # input in text
-                    value = int(value.encode("utf-8").hex(), 16)
+                    try:
+                        value = int(value.encode("ascii").hex(), 16)
+                    except ValueError:
+                        value = None
                 else:
                     # input in Hex
                     value = int(value, 16)
 
-                if not 0 < value < 65535:
+                if not 0 < value < 65535 or value is None:
                     responsetxt = b"invalid value specified\r\n"
                     responserc = 400
                     responseheader = "text/plain"
@@ -568,7 +572,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
 
             # start creating command
 
-            bodybytes = dataloggerid.encode("utf-8")
+            bodybytes = dataloggerid.encode("ascii")
             body = bodybytes.hex()
 
             if self.loggerreg[dataloggerid]["protocol"] == "06":
@@ -578,7 +582,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
                 value = f"{value:04x}"
                 valuelen = ""
             else:
-                value = value.encode("utf-8").hex()
+                value = value.encode("ascii").hex()
                 valuelen = int(len(value) / 2)
                 valuelen = f"{valuelen:04x}"
 
@@ -864,7 +868,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print("\t - Grottserver - Plain record: ")
                 print(format_multi_line("\t\t ", result_string))
             loggerid = result_string[16:36]
-            loggerid = codecs.decode(loggerid, "hex").decode("utf-8")
+            loggerid = codecs.decode(loggerid, "hex").decode("ascii")
 
             # Prepare response
             if header[14:16] in ("16"):
@@ -918,12 +922,12 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                         result_string = data
 
                     loggerid = result_string[16:36]
-                    loggerid = codecs.decode(loggerid, "hex").decode("utf-8")
+                    loggerid = codecs.decode(loggerid, "hex").decode("ascii")
                     if header[12:14] in ("02", "05"):
                         inverterid = result_string[36:56]
                     else:
                         inverterid = result_string[76:96]
-                    inverterid = codecs.decode(inverterid, "hex").decode("utf-8")
+                    inverterid = codecs.decode(inverterid, "hex").decode("ascii")
 
                     try:
                         self.loggerreg[loggerid].update(
@@ -982,7 +986,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     valuelen = int(result_string[40 + offset : 44 + offset], 16)
                     value = codecs.decode(
                         result_string[44 + offset : 44 + offset + valuelen * 2], "hex"
-                    ).decode("utf-8")
+                    ).decode("ascii")
 
                 regkey = f"{register:04x}"
                 if command == "06":
