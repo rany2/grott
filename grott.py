@@ -12,7 +12,6 @@
 
 # Updated: 2022-06-02
 
-verrel = "2.7.4"
 
 import sys
 
@@ -20,6 +19,8 @@ from grottconf import Conf
 from grottproxy import Proxy
 from grottserver import Server
 from grottsniffer import Sniff
+
+verrel = "2.7.4"
 
 # proces config file
 conf = Conf(verrel)
@@ -39,7 +40,7 @@ if conf.mode == "proxy":
         print("Ctrl C - Stopping server")
         try:
             proxy.on_close(conf)
-        except:
+        except Exception:
             print("\t - no ports to close")
         sys.exit(1)
 

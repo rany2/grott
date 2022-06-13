@@ -136,14 +136,14 @@ class Conf:
         if self.influx:
             if self.ifip == "localhost":
                 self.ifip = "0.0.0.0"
-            if self.influx2 == False:
+            if not self.influx2:
                 if self.verbose:
                     print("")
                 if self.verbose:
                     print("\t - " + "Grott InfluxDB V1 initiating started")
                 try:
                     from influxdb import InfluxDBClient
-                except:
+                except ImportError:
                     if self.verbose:
                         print(
                             "\t - " + "Grott Influxdb Library not installed in Python"
@@ -179,7 +179,7 @@ class Conf:
                         )
                     try:
                         self.influxclient.create_database(self.ifdbname)
-                    except:
+                    except Exception:
                         if self.verbose:
                             print(
                                 "\t - "
@@ -200,7 +200,7 @@ class Conf:
                 try:
                     from influxdb_client import InfluxDBClient
                     from influxdb_client.client.write_api import SYNCHRONOUS
-                except:
+                except ImportError:
                     if self.verbose:
                         print(
                             "\t - "
@@ -225,7 +225,7 @@ class Conf:
                     buckets = self.ifbucket_api.find_bucket_by_name(self.ifbucket)
                     organizations = self.iforganization_api.find_organizations()
                     # print(organizations)
-                    if buckets == None:
+                    if buckets is None:
                         print(
                             "\t - " + "influxDB bucket ", self.ifbucket, "not defined"
                         )
@@ -379,10 +379,10 @@ class Conf:
 
         args, unknown = parser.parse_known_args()
 
-        if args.c != None:
+        if args.c is not None:
             self.cfgfile = args.c
-        # if (args.o != None) : sys.stdout = open(args.o, 'wb',0) changed to support unbuffered output in windows !!!
-        if args.o != None:
+        # if (args.o is not None) : sys.stdout = open(args.o, 'wb',0) changed to support unbuffered output in windows !!!
+        if args.o is not None:
             sys.stdout = io.TextIOWrapper(open(args.o, "wb", 0), write_through=True)
         self.verbose = args.verbose
         self.anomqtt = args.nomqtt
@@ -391,13 +391,13 @@ class Conf:
         self.ablockcmd = args.blockcmd
         self.anoipf = args.noipf
 
-        if args.m != None:
+        if args.m is not None:
             # print("mode: ",args.m)
             if args.m == "proxy":
                 self.amode = "proxy"
             else:
                 self.amode = "sniff"  # default
-        if args.i != None and args.i != "none":  # added none for docker support
+        if args.i is not None and args.i != "none":  # added none for docker support
             self.ainverterid = args.i
 
         if self.verbose:
@@ -415,9 +415,9 @@ class Conf:
         print("\nGrott override settings if set in commandline")
         if hasattr(self, "amode"):
             self.mode = self.amode
-        if hasattr(self, "ablockcmd") and self.ablockcmd == True:
+        if hasattr(self, "ablockcmd") and self.ablockcmd:
             self.blockcmd = self.ablockcmd
-        if hasattr(self, "anoipf") and self.anoipf == True:
+        if hasattr(self, "anoipf") and self.anoipf:
             self.noipf = self.anoipf
         if hasattr(self, "ainverterid"):
             self.inverterid = self.ainverterid
@@ -586,143 +586,143 @@ class Conf:
         print("\nGrott process environmental variables")
         if os.getenv("gmode") in ("sniff", "proxy"):
             self.mode = self.getenv("gmode")
-        if os.getenv("gverbose") != None:
+        if os.getenv("gverbose") is not None:
             self.verbose = self.getenv("verbose")
-        if os.getenv("gminrecl") != None:
+        if os.getenv("gminrecl") is not None:
             if 0 <= int(os.getenv("gminrecl")) <= 255:
                 self.minrecl = self.getenv("gminrecl")
-        if os.getenv("gdecrypt") != None:
+        if os.getenv("gdecrypt") is not None:
             self.decrypt = self.getenv("gdecrypt")
-        if os.getenv("gcompat") != None:
+        if os.getenv("gcompat") is not None:
             self.compat = self.getenv("gcompat")
-        if os.getenv("gincludeall") != None:
+        if os.getenv("gincludeall") is not None:
             self.includeall = self.getenv("gincludeall")
-        if os.getenv("ginvtype") != None:
+        if os.getenv("ginvtype") is not None:
             self.invtype = self.getenv("ginvtype")
-        if os.getenv("gblockcmd") != None:
+        if os.getenv("gblockcmd") is not None:
             self.blockcmd = self.getenv("gblockcmd")
-        if os.getenv("gnoipf") != None:
+        if os.getenv("gnoipf") is not None:
             self.noipf = self.getenv("gnoipf")
         if os.getenv("gtime") in ("auto", "server"):
             self.gtime = self.getenv("gtime")
-        if os.getenv("gtimezone") != None:
+        if os.getenv("gtimezone") is not None:
             self.tmzone = self.getenv("gtimezone")
-        if os.getenv("gsendbuf") != None:
+        if os.getenv("gsendbuf") is not None:
             self.sendbuf = self.getenv("gsendbuf")
-        if os.getenv("ginverterid") != None:
+        if os.getenv("ginverterid") is not None:
             self.inverterid = self.getenv("ginverterid")
-        if os.getenv("ggrottip") != None:
+        if os.getenv("ggrottip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("ggrottip"))
                 self.grottip = self.getenv("ggrottip")
-            except:
+            except ValueError:
                 if self.verbose:
                     print("\nGrott IP address env invalid")
-        if os.getenv("ggrottport") != None:
+        if os.getenv("ggrottport") is not None:
             if 0 <= int(os.getenv("ggrottport")) <= 65535:
                 self.grottport = self.getenv("ggrottport")
-        if os.getenv("gvalueoffset") != None:
+        if os.getenv("gvalueoffset") is not None:
             if 0 <= int(os.getenv("gvalueoffset")) <= 255:
                 self.valueoffset = self.getenv("gvalueoffset")
-        if os.getenv("ggrowattip") != None:
+        if os.getenv("ggrowattip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("ggrowattip"))
                 self.growattip = self.getenv("ggrowattip")
-            except:
+            except ValueError:
                 if self.verbose:
                     print("\nGrott Growatt server IP address env invalid")
-        if os.getenv("ggrowattport") != None:
+        if os.getenv("ggrowattport") is not None:
             if 0 <= int(os.getenv("ggrowattport")) <= 65535:
                 self.growattport = int(self.getenv("ggrowattport"))
             else:
                 if self.verbose:
                     print("\nGrott Growatt server Port address env invalid")
         # handle mqtt environmentals
-        if os.getenv("gnomqtt") != None:
+        if os.getenv("gnomqtt") is not None:
             self.nomqtt = self.getenv("gnomqtt")
-        if os.getenv("gmqttip") != None:
+        if os.getenv("gmqttip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("gmqttip"))
                 self.mqttip = self.getenv("gmqttip")
-            except:
+            except ValueError:
                 if self.verbose:
                     print("\nGrott MQTT server IP address env invalid")
-        if os.getenv("gmqttport") != None:
+        if os.getenv("gmqttport") is not None:
             if 0 <= int(os.getenv("gmqttport")) <= 65535:
                 self.mqttport = int(self.getenv("gmqttport"))
             else:
                 if self.verbose:
                     print("\nGrott MQTT server Port address env invalid")
 
-        if os.getenv("gmqtttopic") != None:
+        if os.getenv("gmqtttopic") is not None:
             self.mqtttopic = self.getenv("gmqtttopic")
-        if os.getenv("gmqttmtopic") != None:
+        if os.getenv("gmqttmtopic") is not None:
             self.mqttmtopic = self.getenv("gmqttmtopic")
-        if os.getenv("gmqttmtopicname") != None:
+        if os.getenv("gmqttmtopicname") is not None:
             self.mqttmtopicname = self.getenv("gmqttmtopicname")
-        if os.getenv("gmqttretain") != None:
+        if os.getenv("gmqttretain") is not None:
             self.mqttretain = self.getenv("gmqttretain")
-        if os.getenv("gmqttauth") != None:
+        if os.getenv("gmqttauth") is not None:
             self.mqttauth = self.getenv("gmqttauth")
-        if os.getenv("gmqttuser") != None:
+        if os.getenv("gmqttuser") is not None:
             self.mqttuser = self.getenv("gmqttuser")
-        if os.getenv("gmqttpassword") != None:
+        if os.getenv("gmqttpassword") is not None:
             self.mqttpsw = self.getenv("gmqttpassword")
         # Handle PVOutput variables
-        if os.getenv("gpvoutput") != None:
+        if os.getenv("gpvoutput") is not None:
             self.pvoutput = self.getenv("gpvoutput")
-        if os.getenv("gpvtemp") != None:
+        if os.getenv("gpvtemp") is not None:
             self.pvtemp = self.getenv("gpvtemp")
-        if os.getenv("gpvdisv1") != None:
+        if os.getenv("gpvdisv1") is not None:
             self.pvdisv1 = self.getenv("gpvdisv1")
-        if os.getenv("gpvapikey") != None:
+        if os.getenv("gpvapikey") is not None:
             self.pvapikey = self.getenv("gpvapikey")
-        if os.getenv("gpvinverters") != None:
+        if os.getenv("gpvinverters") is not None:
             self.pvinverters = int(self.getenv("gpvinverters"))
         for x in range(self.pvinverters + 1):
-            if os.getenv("gpvsystemid" + str(x)) != None:
+            if os.getenv("gpvsystemid" + str(x)) is not None:
                 self.pvsystemid[x] = self.getenv("gpvsystemid" + str(x))
-            if os.getenv("gpvinverterid" + str(x)) != None:
+            if os.getenv("gpvinverterid" + str(x)) is not None:
                 self.pvinverterid[x] = self.getenv("gpvinverterid" + str(x))
         if self.pvinverters == 1:
-            if os.getenv("gpvsystemid") != None:
+            if os.getenv("gpvsystemid") is not None:
                 self.pvsystemid[1] = self.getenv("gpvsystemid")
         # Handle Influx
-        if os.getenv("ginflux") != None:
+        if os.getenv("ginflux") is not None:
             self.influx = self.getenv("ginflux")
-        if os.getenv("ginflux2") != None:
+        if os.getenv("ginflux2") is not None:
             self.influx2 = self.getenv("ginflux2")
-        if os.getenv("gifdbname") != None:
+        if os.getenv("gifdbname") is not None:
             self.ifdbname = self.getenv("gifdbname")
-        if os.getenv("gifip") != None:
+        if os.getenv("gifip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("gifip"))
                 self.ifip = self.getenv("gifip")
-            except:
+            except ValueError:
                 if self.verbose:
                     print("\nGrott InfluxDB server IP address env invalid")
-        if os.getenv("gifport") != None:
+        if os.getenv("gifport") is not None:
             if 0 <= int(os.getenv("gifport")) <= 65535:
                 self.ifport = int(self.getenv("gifport"))
             else:
                 if self.verbose:
                     print("\nGrott InfluxDB server Port address env invalid")
-        if os.getenv("gifuser") != None:
+        if os.getenv("gifuser") is not None:
             self.ifuser = self.getenv("gifuser")
-        if os.getenv("gifpassword") != None:
+        if os.getenv("gifpassword") is not None:
             self.ifpsw = self.getenv("gifpassword")
-        if os.getenv("giforg") != None:
+        if os.getenv("giforg") is not None:
             self.iforg = self.getenv("giforg")
-        if os.getenv("gifbucket") != None:
+        if os.getenv("gifbucket") is not None:
             self.ifbucket = self.getenv("gifbucket")
-        if os.getenv("giftoken") != None:
+        if os.getenv("giftoken") is not None:
             self.iftoken = self.getenv("giftoken")
         # Handle Extension
-        if os.getenv("gextension") != None:
+        if os.getenv("gextension") is not None:
             self.extension = self.getenv("gextension")
-        if os.getenv("gextname") != None:
+        if os.getenv("gextname") is not None:
             self.extname = self.getenv("gextname")
-        if os.getenv("gextvar") != None:
+        if os.getenv("gextvar") is not None:
             self.extvar = eval(self.getenv("gextvar"))
 
     def set_recwl(self):
@@ -749,21 +749,18 @@ class Conf:
             "5119",  # identify/display datalogger config
             "5129",  # announce record
             "5150",  # Archived record
-            "5103",  # announce record
-            "5104",  # data record
             "5216",  # ping
-            "5105",  # identify/display inverter config
             "5219",  # identify/display datalogger config
             "5229",  # announce record
             "5250",  # Archived record
         }
 
         try:
-            with open("recwl.txt") as f:
+            with open("recwl.txt", "r", encoding="utf-8") as f:
                 self.recwl = f.read().splitlines()
             if self.verbose:
                 print("\nGrott external record whitelist: 'recwl.txt' read")
-        except:
+        except FileNotFoundError:
             if self.verbose:
                 print("\nGrott external record whitelist 'recwl.txt' not found")
         if self.verbose:
@@ -1512,21 +1509,21 @@ class Conf:
         self.recorddict.update(self.recorddict12)  # T05NNNNXSPH
         f = []
         print("\nGrott process json layout files")
-        for (dirpath, dirnames, filenames) in walk("."):
+        for _, _, filenames in walk("."):
             f.extend(filenames)
             break
         for x in f:
             if (x[0] == "t" or x[0] == "T") and x.find(".json") > 0:
                 print(x)
-                with open(x) as json_file:
+                with open(x, "r", encoding="utf-8") as json_file:
                     dicttemp = json.load(json_file)
                     # print(dicttemp)
                     self.recorddict.update(dicttemp)
 
         if self.verbose:
             print("\nGrott layout records loaded")
-        for key in self.recorddict:
+        for key, value in self.recorddict.items():
             if self.verbose:
                 print(key, " : ")
             if self.verbose:
-                print(self.recorddict[key])
+                print(value)

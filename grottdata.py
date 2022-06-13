@@ -4,29 +4,19 @@
 
 import codecs
 import json
-# import struct
-# import sys
 import textwrap
-# import pytz
 import time
-# import time
-from datetime import datetime, timedelta, timezone
-from itertools import cycle  # to support "cycling" the iterator
+from datetime import datetime, timezone
+from itertools import cycle
 
-# import mqtt
-import paho.mqtt.publish as publish
-
-# from os import times_result
-
-
-# requests
+from paho.mqtt import publish
 
 
 # Formats multi-line data
 def format_multi_line(prefix, string, size=80):
     size -= len(prefix)
     if isinstance(string, bytes):
-        string = "".join(r"\x{:02x}".format(byte) for byte in string)
+        string = "".join(rf"\x{byte:02x}" for byte in string)
         if size % 2:
             size -= 1
     return "\n".join([prefix + line for line in textwrap.wrap(string, size)])
@@ -60,8 +50,7 @@ def str2bool(defstr):
         defret = False
     if "defret" in locals():
         return defret
-    else:
-        return ()
+    return ()
 
 
 def procdata(conf, data):
@@ -98,8 +87,8 @@ def procdata(conf, data):
             print("\t - " + "layout   : ", layout)
         try:
             # does record layout record exists?
-            test = conf.recorddict[layout]
-        except:
+            _ = conf.recorddict[layout]
+        except KeyError:
             # try generic if generic record exist
             if conf.verbose:
                 print("\t - " + "no matching record layout found, try generic")
@@ -107,8 +96,8 @@ def procdata(conf, data):
                 layout = layout.replace(header[12:16], "NNNN")
                 try:
                     # does generic record layout record exists?
-                    test = conf.recorddict[layout]
-                except:
+                    _ = conf.recorddict[layout]
+                except KeyError:
                     # no valid record fall back on old processing?
                     if conf.verbose:
                         print(
@@ -128,8 +117,8 @@ def procdata(conf, data):
     try:
         # see if decrypt keyword is defined
         conf.decrypt = str2bool(conf.recorddict[layout]["decrypt"]["value"])
-    except:
-        # if decrypt not defined, default is decypt
+    except KeyError:
+        # if decrypt not defined, default is decrypt
         conf.decrypt = True
 
     if conf.decrypt:
@@ -151,7 +140,7 @@ def procdata(conf, data):
     # print(result_string.find('0074' ))
 
     # Test length if < 12 it is a data ack record, if novalidrec flag is true it is not a (recognized) data record
-    if ndata < 12 or novalidrec == True:
+    if ndata < 12 or novalidrec:
         if conf.verbose:
             print(
                 "\t - "
@@ -177,8 +166,7 @@ def procdata(conf, data):
 
         try:
             # v270 try if logstart and log fields are defined, if yes prepare log fields
-            logstart = conf.recorddict[layout]["logstart"]["value"]
-            logdict = {}
+            _ = conf.recorddict[layout]["logstart"]["value"]
             logdict = (
                 bytes.fromhex(
                     result_string[
@@ -191,7 +179,7 @@ def procdata(conf, data):
                 .decode("ASCII")
                 .split(",")
             )
-        except:
+        except Exception:
             pass
 
         # v270 log data record processing (SDM630 smart monitor with railog
@@ -205,15 +193,15 @@ def procdata(conf, data):
                     # try if key type is specified
                     if conf.recorddict[layout][keyword]["incl"] == "no":
                         include = False
-                except:
-                    # no include statement keyword should be process, set include to prevent except errors
-                    include = True
+                except KeyError:
+                    pass
+
                 # process only keyword needs to be included (default):
-                if (include) or (conf.includeall):
+                if include or conf.includeall:
                     try:
                         # try if key type is specified
                         keytype = conf.recorddict[layout][keyword]["type"]
-                    except:
+                    except KeyError:
                         # if not default is num
                         keytype = "num"
                     if keytype == "text":
@@ -286,11 +274,11 @@ def procdata(conf, data):
         try:
             definedkey["device"] = conf.recorddict[layout]["device"]["value"]
             device_defined = True
-        except:
+        except KeyError:
             # test if pvserial was defined, if not take inverterid from config.
             try:
-                test = definedkey["pvserial"]
-            except:
+                _ = definedkey["pvserial"]
+            except KeyError:
                 definedkey["pvserial"] = conf.inverterid
                 conf.recorddict[layout]["pvserial"] = {"value": 0, "type": "text"}
                 if conf.verbose:
@@ -303,7 +291,7 @@ def procdata(conf, data):
         try:
             # test of date is specified in layout
             dateoffset = int(conf.recorddict[layout]["date"]["value"])
-        except:
+        except (ValueError, KeyError, TypeError):
             # no date specified, default no date specified
             dateoffset = 0
 
@@ -344,22 +332,10 @@ def procdata(conf, data):
             else:
                 pvsecond = str(pvsecondI)
             # create date/time is format
-            pvdate = (
-                pvyear
-                + "-"
-                + pvmonth
-                + "-"
-                + pvday
-                + "T"
-                + pvhour
-                + ":"
-                + pvminute
-                + ":"
-                + pvsecond
-            )
+            pvdate = f"{pvyear}-{pvmonth}-{pvday}T{pvhour}:{pvminute}:{pvsecond}"
             # test if valid date/time in data record
             try:
-                testdate = datetime.strptime(pvdate, "%Y-%m-%dT%H:%M:%S")
+                _ = datetime.strptime(pvdate, "%Y-%m-%dT%H:%M:%S")
                 jsondate = pvdate
                 if conf.verbose:
                     print("\t - date-time: ", jsondate)
@@ -388,7 +364,7 @@ def procdata(conf, data):
         if result_string.find(conf.SN) > -1:
             serialfound = True
 
-        if serialfound == True:
+        if serialfound:
 
             jsondate = datetime.now().replace(microsecond=0).isoformat()
             timefromserver = True
@@ -595,62 +571,47 @@ def procdata(conf, data):
                 definedkey["pvserial"] = codecs.decode(
                     definedkey["pvserial"], "hex"
                 ).decode("utf-8")
-                print("\t - " + "Grott values retrieved:")
-                print("\t\t - " + "pvserial:         ", definedkey["pvserial"])
-                print("\t\t - " + "pvstatus:         ", definedkey["pvstatus"])
-                print("\t\t - " + "pvpowerin:        ", definedkey["pvpowerin"] / 10)
-                print("\t\t - " + "pvpowerout:       ", definedkey["pvpowerout"] / 10)
-                print(
-                    "\t\t - " + "pvenergytoday:    ", definedkey["pvenergytoday"] / 10
-                )
-                print(
-                    "\t\t - " + "pvenergytotal:    ", definedkey["pvenergytotal"] / 10
-                )
-                print("\t\t - " + "pv1watt:          ", definedkey["pv1watt"] / 10)
-                print("\t\t - " + "pv2watt:          ", definedkey["pv2watt"] / 10)
-                print(
-                    "\t\t - " + "pvfrequentie:     ", definedkey["pvfrequentie"] / 100
-                )
-                print(
-                    "\t\t - " + "pvgridvoltage:    ", definedkey["pvgridvoltage"] / 10
-                )
-                print("\t\t - " + "pv1voltage:       ", definedkey["pv1voltage"] / 10)
-                print("\t\t - " + "pv1current:       ", definedkey["pv1current"] / 10)
-                print("\t\t - " + "pv2voltage:       ", definedkey["pv2voltage"] / 10)
-                print("\t\t - " + "pv2current:       ", definedkey["pv2current"] / 10)
-                print(
-                    "\t\t - " + "pvtemperature:    ", definedkey["pvtemperature"] / 10
-                )
-                print(
-                    "\t\t - " + "pvipmtemperature: ",
-                    definedkey["pvipmtemperature"] / 10,
-                )
+                print("\t - Grott values retrieved:")
+                print("\t\t - pvserial:         ", definedkey["pvserial"])
+                print("\t\t - pvstatus:         ", definedkey["pvstatus"])
+                print("\t\t - pvpowerin:        ", definedkey["pvpowerin"] / 10)
+                print("\t\t - pvpowerout:       ", definedkey["pvpowerout"] / 10)
+                print("\t\t - pvenergytoday:    ", definedkey["pvenergytoday"] / 10)
+                print("\t\t - pvenergytotal:    ", definedkey["pvenergytotal"] / 10)
+                print("\t\t - pv1watt:          ", definedkey["pv1watt"] / 10)
+                print("\t\t - pv2watt:          ", definedkey["pv2watt"] / 10)
+                print("\t\t - pvfrequentie:     ", definedkey["pvfrequentie"] / 100)
+                print("\t\t - pvgridvoltage:    ", definedkey["pvgridvoltage"] / 10)
+                print("\t\t - pv1voltage:       ", definedkey["pv1voltage"] / 10)
+                print("\t\t - pv1current:       ", definedkey["pv1current"] / 10)
+                print("\t\t - pv2voltage:       ", definedkey["pv2voltage"] / 10)
+                print("\t\t - pv2current:       ", definedkey["pv2current"] / 10)
+                print("\t\t - pvtemperature:    ", definedkey["pvtemperature"] / 10)
+                print("\t\t - pvipmtemperature: ", definedkey["pvipmtemperature"] / 10)
             else:
                 # dynamic print
-                print("\t - " + "Grott values retrieved:")
-                for key in definedkey:
+                print("\t - Grott values retrieved:")
+                for key, value in definedkey.items():
                     # test if there is an divide factor is specifed
                     try:
                         # print(keyword)
                         keydivide = conf.recorddict[layout][key]["divide"]
                         # print(keydivide)
-                    except:
+                    except KeyError:
                         # print("error")
                         keydivide = 1
 
-                    if type(definedkey[key]) != type(str()) and keydivide != 1:
-                        printkey = f"{definedkey[key] / keydivide:.1f}"
+                    if not isinstance(value, str) and keydivide != 1:
+                        printkey = f"{value / keydivide:.1f}"
                     else:
-                        printkey = definedkey[key]
+                        printkey = value
                     print("\t\t - ", key.ljust(20) + " : ", printkey)
 
         # create JSON message  (first create obj dict and then convert to a JSON message)
 
         # filter invalid 0120 record (0 < voltage_l1 > 500 )
         if header[14:16] == "20":
-            if (definedkey["voltage_l1"] / 10 > 500) or (
-                definedkey["voltage_l1"] / 10 < 0
-            ):
+            if 0 < definedkey["voltage_l1"] / 10 > 500:
                 print("\t - " + "Grott invalid 0120 record processing stopped")
                 return
 
@@ -658,7 +619,7 @@ def procdata(conf, data):
         # compatibility with prev releases for "20" smart monitor record!
         # if device is not specified in layout record datalogserial is used as device (to distinguish record from inverter record)
 
-        if device_defined == True:
+        if device_defined:
             jsonobj = {
                 "device": definedkey["device"],
                 "time": jsondate,
@@ -682,7 +643,7 @@ def procdata(conf, data):
                     "values": {},
                 }
 
-        for key in definedkey:
+        for key, value in definedkey.items():
 
             # if key != "pvserial" :
             # if conf.recorddict[layout][key]["type"] == "num" :
@@ -691,7 +652,7 @@ def procdata(conf, data):
             # print(type(definedkey[key]))
             # if type(definedkey[key]) == type(1) :
             #    jsonobj["values"][key] = definedkey[key]
-            jsonobj["values"][key] = definedkey[key]
+            jsonobj["values"][key] = value
 
         jsonmsg = json.dumps(jsonobj)
 
@@ -701,17 +662,16 @@ def procdata(conf, data):
 
         # do net invalid records (e.g. buffered records with time from server) or buffered records if sendbuf = False
         if buffered == "yes":
-            if (conf.sendbuf == False) or (timefromserver == True):
+            if not conf.sendbuf or timefromserver:
                 if conf.verbose:
                     print(
-                        "\t - "
-                        + "Buffered record not sent: sendbuf = False or invalid date/time format"
+                        "\t - Buffered record not sent: sendbuf = False or invalid date/time format"
                     )
                 return
 
-        if conf.nomqtt != True:
+        if not conf.nomqtt:
             # if meter data use mqtttopicname topic
-            if (header[14:16] in ("20", "1b")) and (conf.mqttmtopic == True):
+            if (header[14:16] in ("20", "1b")) and conf.mqttmtopic:
                 mqtttopic = conf.mqttmtopicname
             else:
                 mqtttopic = conf.mqtttopic
@@ -861,7 +821,7 @@ def procdata(conf, data):
             print("\t - " + "Grott InfluxDB publihing started")
         try:
             import pytz
-        except:
+        except ImportError:
             if conf.verbose:
                 print(
                     "\t - "
@@ -871,7 +831,7 @@ def procdata(conf, data):
             return
         try:
             local = pytz.timezone(conf.tmzone)
-        except:
+        except pytz.UnknownTimeZoneError:
             if conf.verbose:
                 if conf.tmzone == "local":
                     print("\t - " + "Timezone local specified default timezone used")
@@ -934,18 +894,17 @@ def procdata(conf, data):
             if conf.influx2:
                 if conf.verbose:
                     print("\t - " + "Grott write to influxdb v2")
-                ifresult = conf.ifwrite_api.write(conf.ifbucket, conf.iforg, ifjson)
-                # print(ifresult)
+                _ = conf.ifwrite_api.write(conf.ifbucket, conf.iforg, ifjson)
             else:
                 if conf.verbose:
                     print("\t - " + "Grott write to influxdb v1")
-                ifresult = conf.influxclient.write_points(ifjson)
+                _ = conf.influxclient.write_points(ifjson)
         # except :
         except Exception as e:
             # if  conf.verbose:
             print("\t - " + "Grott InfluxDB error ")
             print(e)
-            raise SystemExit("Grott Influxdb write error, grott will be stopped")
+            raise SystemExit("Grott Influxdb write error, grott will be stopped") from e
 
     else:
         if conf.verbose:
@@ -959,7 +918,7 @@ def procdata(conf, data):
 
         try:
             module = importlib.import_module(conf.extname, package=None)
-        except:
+        except Exception:
             if conf.verbose:
                 print("\t - " + "Grott import extension failed:", conf.extname)
             return

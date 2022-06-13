@@ -16,7 +16,6 @@ from grottdata import procdata
 class Sniff:
     def __init__(self, conf):
         self.conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-        # if conf.verbose: print("\nGrott monitoring started\n")
         if conf.verbose:
             print("")
             print("\nGrott sniff mode started\n")

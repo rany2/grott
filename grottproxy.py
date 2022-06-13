@@ -3,25 +3,17 @@
 # Updated: 2022-06-02
 # Version 2.7.4
 
-import codecs
-import datetime
-import json
 import select
 import socket
-import struct
 import sys
-import textwrap
 import time
-from itertools import cycle  # to support "cycling" the iterator
+
+from grottdata import decrypt, format_multi_line, procdata
 
 ## to resolve errno 32: broken pipe issue (only linux)
 if sys.platform != "win32":
     from signal import SIG_DFL, SIGPIPE, signal
 
-# import mqtt
-import paho.mqtt.publish as publish
-
-from grottdata import decrypt, format_multi_line, procdata
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
@@ -70,7 +62,7 @@ class Proxy:
                 conf.grottport,
                 "\n",
             )
-        except:
+        except Exception:
             print("IP and port information not available")
 
         self.server.listen(200)
@@ -78,17 +70,16 @@ class Proxy:
 
     def main(self, conf):
         self.input_list.append(self.server)
-        while 1:
+        while True:
             time.sleep(delay)
-            ss = select.select
-            inputready, outputready, exceptready = ss(self.input_list, [], [])
+            inputready, _, _ = select.select(self.input_list, [], [])
             for self.s in inputready:
                 if self.s == self.server:
                     self.on_accept(conf)
                     break
                 try:
                     self.data, self.addr = self.s.recvfrom(buffer_size)
-                except:
+                except Exception:
                     if conf.verbose:
                         print("\t - Grott connection error")
                     self.on_close(conf)
@@ -96,8 +87,7 @@ class Proxy:
                 if len(self.data) == 0:
                     self.on_close(conf)
                     break
-                else:
-                    self.on_recv(conf)
+                self.on_recv(conf)
 
     def on_accept(self, conf):
         forward = Forward().start(self.forward_to[0], self.forward_to[1])
@@ -111,7 +101,7 @@ class Proxy:
             self.channel[forward] = clientsock
         else:
             if conf.verbose:
-                print("\t - Can't establish connection with remote server."),
+                print("\t - Can't establish connection with remote server.")
                 print("\t - Closing connection with client side", clientaddr)
             clientsock.close()
 
@@ -120,7 +110,7 @@ class Proxy:
             # try / except to resolve errno 107: Transport endpoint is not connected
             try:
                 print("\t -", self.s.getpeername(), "has disconnected")
-            except:
+            except Exception:
                 print("\t -", "peer has disconnected")
 
         # remove objects from input_list

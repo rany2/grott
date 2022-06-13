@@ -4,52 +4,20 @@ import http.server
 import json
 import queue
 import socketserver
-import textwrap
 import threading
 from collections import defaultdict
 from datetime import datetime
-from itertools import cycle
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
 import pytz
 
+from grottdata import decrypt, format_multi_line
 from grottdata import procdata as grottdata
 from grottproxy import Forward
 
 # grottserver.py emulates the server.growatt.com website and is
 # initially developed for debugging and testing grott.
-
-
-# Formats multi-line data
-def format_multi_line(prefix, string, size=80):
-    size -= len(prefix)
-    if isinstance(string, bytes):
-        string = "".join(rf"\x{byte:02x}" for byte in string)
-        if size % 2:
-            size -= 1
-    return "\n".join([prefix + line for line in textwrap.wrap(string, size)])
-
-
-# encrypt / decrypt data.
-def decrypt(decdata):
-
-    ndecdata = len(decdata)
-
-    # Create mask and convert to hexadecimal
-    mask = "Growatt"
-    hex_mask = [f"{ord(x):02x}" for x in mask]
-    nmask = len(hex_mask)
-
-    # start decrypt routine
-    unscrambled = list(decdata[0:8])  # take unscramble header
-
-    for i, j in zip(range(0, ndecdata - 8), cycle(range(0, nmask))):
-        unscrambled = unscrambled + [decdata[i + 8] ^ int(hex_mask[j], 16)]
-
-    result_string = "".join(f"{n:02x}" for n in unscrambled)
-
-    return result_string
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
@@ -837,211 +805,200 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             raise SystemExit(0)
 
     def process_data(self, data):
-        # Prevent generic errors:
-        try:
-            # Display data
+        # Display data
+        if self.verbose:
+            print(f"\t - Grottserver - Data received from : {self.qname}")
+            print("\t - Grottserver - Original Data:")
+            print(format_multi_line("\t\t ", data))
+
+        # Collect data for MQTT, PVOutput, InfluxDB, etc..
+        if len(data) > self.conf.minrecl:
+            grottdata(self.conf, data)
+        else:
+            if self.conf.verbose:
+                print(
+                    "\t - " + "Data less then minimum record length, data not processed"
+                )
+
+        # Create header
+        header = "".join(f"{n:02x}" for n in data[0:8])
+        sequencenumber = header[0:4]
+        protocol = header[6:8]
+        command = header[14:16]
+        if protocol in ("05", "06"):
+            result_string = decrypt(data)
+        else:
+            result_string = data
+        if self.verbose:
+            print("\t - Grottserver - Plain record: ")
+            print(format_multi_line("\t\t ", result_string))
+        loggerid = result_string[16:36]
+        loggerid = codecs.decode(loggerid, "hex").decode("ascii")
+
+        # Prepare response
+        if header[14:16] in ("16"):
+            # if ping send data as reply
+            response = data
             if self.verbose:
-                print(f"\t - Grottserver - Data received from : {self.qname}")
-                print("\t - Grottserver - Original Data:")
-                print(format_multi_line("\t\t ", data))
+                print("\t - Grottserver - 16 - Ping response: ")
+                print(format_multi_line("\t\t ", response))
 
-            # Collect data for MQTT, PVOutput, InfluxDB, etc..
-            if len(data) > self.conf.minrecl:
-                grottdata(self.conf, data)
-            else:
-                if self.conf.verbose:
-                    print(
-                        "\t - "
-                        + "Data less then minimum record length, data not processed"
-                    )
+            # forward data for growatt
+            self.forward_data(data)
 
-            # Create header
-            header = "".join(f"{n:02x}" for n in data[0:8])
-            sequencenumber = header[0:4]
-            protocol = header[6:8]
-            command = header[14:16]
-            if protocol in ("05", "06"):
-                result_string = decrypt(data)
-            else:
-                result_string = data
+        elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
+            # if datarecord send ack.
             if self.verbose:
-                print("\t - Grottserver - Plain record: ")
-                print(format_multi_line("\t\t ", result_string))
-            loggerid = result_string[16:36]
-            loggerid = codecs.decode(loggerid, "hex").decode("ascii")
+                print("\t - Grottserver - " + header[12:16] + " data record received")
 
-            # Prepare response
-            if header[14:16] in ("16"):
-                # if ping send data as reply
-                response = data
-                if self.verbose:
-                    print("\t - Grottserver - 16 - Ping response: ")
-                    print(format_multi_line("\t\t ", response))
+            # forward data for growatt
+            self.forward_data(data)
 
-                # forward data for growatt
-                self.forward_data(data)
+            # create ack response
+            if header[6:8] == "02":
+                # unencrypted ack
+                headerackx = bytes.fromhex(header[0:8] + "0003" + header[12:16] + "00")
+            else:
+                # encrypted ack
+                headerackx = bytes.fromhex(header[0:8] + "0003" + header[12:16] + "47")
 
-            elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
-                # if datarecord send ack.
-                if self.verbose:
-                    print(
-                        "\t - Grottserver - " + header[12:16] + " data record received"
-                    )
+            # Create CRC 16 Modbus
+            crc16 = libscrc.modbus(headerackx)
 
-                # forward data for growatt
-                self.forward_data(data)
+            # create response
+            response = headerackx + crc16.to_bytes(2, "big")
+            if self.verbose:
+                print("\t - Grottserver - Response: ")
+                print(format_multi_line("\t\t", response))
 
-                # create ack response
-                if header[6:8] == "02":
-                    # unencrypted ack
-                    headerackx = bytes.fromhex(
-                        header[0:8] + "0003" + header[12:16] + "00"
-                    )
+            if header[14:16] == "03":
+                # init record register logger/inverter id (including sessionid?)
+                # decrypt body.
+                if header[6:8] in ("05", "06"):
+                    # print("header1 : ", header[6:8])
+                    result_string = decrypt(data)
                 else:
-                    # encrypted ack
-                    headerackx = bytes.fromhex(
-                        header[0:8] + "0003" + header[12:16] + "47"
-                    )
+                    result_string = data
 
-                # Create CRC 16 Modbus
-                crc16 = libscrc.modbus(headerackx)
+                loggerid = result_string[16:36]
+                loggerid = codecs.decode(loggerid, "hex").decode("ascii")
+                if header[12:14] in ("02", "05"):
+                    inverterid = result_string[36:56]
+                else:
+                    inverterid = result_string[76:96]
+                inverterid = codecs.decode(inverterid, "hex").decode("ascii")
 
-                # create response
-                response = headerackx + crc16.to_bytes(2, "big")
-                if self.verbose:
-                    print("\t - Grottserver - Response: ")
-                    print(format_multi_line("\t\t", response))
-
-                if header[14:16] == "03":
-                    # init record register logger/inverter id (including sessionid?)
-                    # decrypt body.
-                    if header[6:8] in ("05", "06"):
-                        # print("header1 : ", header[6:8])
-                        result_string = decrypt(data)
-                    else:
-                        result_string = data
-
-                    loggerid = result_string[16:36]
-                    loggerid = codecs.decode(loggerid, "hex").decode("ascii")
-                    if header[12:14] in ("02", "05"):
-                        inverterid = result_string[36:56]
-                    else:
-                        inverterid = result_string[76:96]
-                    inverterid = codecs.decode(inverterid, "hex").decode("ascii")
-
-                    try:
-                        self.loggerreg[loggerid].update(
-                            {
-                                "ip": self.client_address[0],
-                                "port": self.client_address[1],
-                                "protocol": header[6:8],
-                            }
-                        )
-                    except KeyError:
-                        self.loggerreg[loggerid] = {
+                try:
+                    self.loggerreg[loggerid].update(
+                        {
                             "ip": self.client_address[0],
                             "port": self.client_address[1],
                             "protocol": header[6:8],
                         }
-
-                    # add invertid
-                    self.loggerreg[loggerid].update(
-                        {inverterid: {"inverterno": header[12:14], "power": 0}}
                     )
-                    self.send_queuereg[self.qname].put_nowait(response)
-                    response = createtimecommand(
-                        self.conf,
-                        protocol,
-                        loggerid,
-                        "0001",
-                        self.commandresponse[self.qname],
-                    )
-                    if self.verbose:
-                        print("\t - Grottserver 03 announce data record processed")
-
-            elif header[14:16] in ("19", "05", "06", "18"):
-                if self.verbose:
-                    print(
-                        "\t - Grottserver - "
-                        + header[12:16]
-                        + " record received, no response needed"
-                    )
-
-                offset = 0
-                if protocol in ("06"):
-                    offset = 40
-
-                register = int(result_string[36 + offset : 40 + offset], 16)
-                if command == "05":
-                    # value = result_string[40+offset:44+offset]
-                    value = result_string[44 + offset : 48 + offset]
-                elif command == "06":
-                    result = result_string[40 + offset : 42 + offset]
-                    # print("06 response result :", result)
-                    value = result_string[42 + offset : 46 + offset]
-                elif command == "18":
-                    result = result_string[40 + offset : 42 + offset]
-                else:
-                    # "19" response take length into account
-                    valuelen = int(result_string[40 + offset : 44 + offset], 16)
-                    value = codecs.decode(
-                        result_string[44 + offset : 44 + offset + valuelen * 2], "hex"
-                    ).decode("ascii")
-
-                regkey = f"{register:04x}"
-                if command == "06":
-                    # command 06 response has ack (result) + value. We will create a
-                    # 06 response and a 05 response (for reg administration)
-                    self.commandresponse[self.qname]["06"][regkey] = {
-                        "value": value,
-                        "result": result,
+                except KeyError:
+                    self.loggerreg[loggerid] = {
+                        "ip": self.client_address[0],
+                        "port": self.client_address[1],
+                        "protocol": header[6:8],
                     }
-                    queue_commandrespadd(
-                        self.commandresponse,
-                        self.qname,
-                        command,
-                        regkey,
-                        {"value": value, "result": result},
-                    )
-                    self.commandresponse[self.qname]["05"][regkey] = {"value": value}
-                if command == "18":
-                    self.commandresponse[self.qname]["18"][regkey] = {"result": result}
-                    queue_commandrespadd(
-                        self.commandresponse,
-                        self.qname,
-                        command,
-                        regkey,
-                        {"result": result},
-                    )
-                else:
-                    # command 05 or 19
-                    self.commandresponse[self.qname][command][regkey] = {"value": value}
-                    queue_commandrespadd(
-                        self.commandresponse,
-                        self.qname,
-                        command,
-                        regkey,
-                        {"value": value},
-                    )
 
-                response = None
-
-            else:
-                if self.verbose:
-                    print("\t - Grottserver - Unknown record received:")
-                response = None
-
-            if response is not None:
-                if self.verbose:
-                    print(
-                        "\t - Grottserver - Put response on queue: ",
-                        self.qname,
-                        " msg: ",
-                    )
-                    print(format_multi_line("\t\t ", response))
+                # add invertid
+                self.loggerreg[loggerid].update(
+                    {inverterid: {"inverterno": header[12:14], "power": 0}}
+                )
                 self.send_queuereg[self.qname].put_nowait(response)
-        except Exception as e:
-            print("\t - Grottserver - exception in main server thread occured : ", e)
+                response = createtimecommand(
+                    self.conf,
+                    protocol,
+                    loggerid,
+                    "0001",
+                    self.commandresponse[self.qname],
+                )
+                if self.verbose:
+                    print("\t - Grottserver 03 announce data record processed")
+
+        elif header[14:16] in ("19", "05", "06", "18"):
+            if self.verbose:
+                print(
+                    "\t - Grottserver - "
+                    + header[12:16]
+                    + " record received, no response needed"
+                )
+
+            offset = 0
+            if protocol in ("06"):
+                offset = 40
+
+            register = int(result_string[36 + offset : 40 + offset], 16)
+            if command == "05":
+                # value = result_string[40+offset:44+offset]
+                value = result_string[44 + offset : 48 + offset]
+            elif command == "06":
+                result = result_string[40 + offset : 42 + offset]
+                # print("06 response result :", result)
+                value = result_string[42 + offset : 46 + offset]
+            elif command == "18":
+                result = result_string[40 + offset : 42 + offset]
+            else:
+                # "19" response take length into account
+                valuelen = int(result_string[40 + offset : 44 + offset], 16)
+                value = codecs.decode(
+                    result_string[44 + offset : 44 + offset + valuelen * 2], "hex"
+                ).decode("ascii")
+
+            regkey = f"{register:04x}"
+            if command == "06":
+                # command 06 response has ack (result) + value. We will create a
+                # 06 response and a 05 response (for reg administration)
+                self.commandresponse[self.qname]["06"][regkey] = {
+                    "value": value,
+                    "result": result,
+                }
+                queue_commandrespadd(
+                    self.commandresponse,
+                    self.qname,
+                    command,
+                    regkey,
+                    {"value": value, "result": result},
+                )
+                self.commandresponse[self.qname]["05"][regkey] = {"value": value}
+            if command == "18":
+                self.commandresponse[self.qname]["18"][regkey] = {"result": result}
+                queue_commandrespadd(
+                    self.commandresponse,
+                    self.qname,
+                    command,
+                    regkey,
+                    {"result": result},
+                )
+            else:
+                # command 05 or 19
+                self.commandresponse[self.qname][command][regkey] = {"value": value}
+                queue_commandrespadd(
+                    self.commandresponse,
+                    self.qname,
+                    command,
+                    regkey,
+                    {"value": value},
+                )
+
+            response = None
+
+        else:
+            if self.verbose:
+                print("\t - Grottserver - Unknown record received:")
+            response = None
+
+        if response is not None:
+            if self.verbose:
+                print(
+                    "\t - Grottserver - Put response on queue: ",
+                    self.qname,
+                    " msg: ",
+                )
+                print(format_multi_line("\t\t ", response))
+            self.send_queuereg[self.qname].put_nowait(response)
 
 
 class Server:
