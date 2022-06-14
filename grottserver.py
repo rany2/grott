@@ -758,17 +758,22 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         self.close_connection()
 
     def read_data(self):
-        while True:
-            data = self.request.recv(1024)
-            if not data:
-                self.shutdown_queue.put_nowait(True)
-                break
-            self.process_data(data)
+        try:
+            while True:
+                data = self.request.recv(1024)
+                if not data:
+                    raise Exception("Client disconnected")
+                self.process_data(data)
+        finally:
+            self.shutdown_queue.put_nowait(True)
 
     def write_data(self):
-        while True:
-            data = self.send_queuereg[self.qname].get()
-            self.request.sendall(data)
+        try:
+            while True:
+                data = self.send_queuereg[self.qname].get()
+                self.request.sendall(data)
+        finally:
+            self.shutdown_queue.put_nowait(True)
 
     def forward_data(self, data, attempts=0):
         if not self.forward_input:
