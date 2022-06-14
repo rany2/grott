@@ -641,7 +641,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
 
-class GrottHttpServer(http.server.HTTPServer):
+class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
