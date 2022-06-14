@@ -132,6 +132,11 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         self.commandresponse = commandresponse
         super().__init__(*args)
 
+    def send_header(self, keyword, value):
+        if keyword.lower() == "server":
+            return
+        super().send_header(keyword, value)
+
     def authorize(self):
         try:
             token = self.conf.httptoken
