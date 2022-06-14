@@ -636,7 +636,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
 
-class GrottHttpServer:
+class GrottHttpServer(http.server.HTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
@@ -649,23 +649,47 @@ class GrottHttpServer:
                 send_queuereg, conf, loggerreg, commandresponse, *args
             )
 
-        self.server = http.server.HTTPServer(
-            (conf.httphost, conf.httpport), handler_factory
-        )
-        self.server.allow_reuse_address = True
+        self.allow_reuse_address = True
+        super().__init__((conf.httphost, conf.httpport), handler_factory)
         print(
             f"\t - GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}"
         )
 
 
 class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    allow_reuse_address: bool = True
+    """This wrapper will create a Growatt server where the handler has access to the send_queue"""
+
+    def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
+        def handler_factory(*args):
+            """
+            Using a function to create and return the handler,
+            so we can provide our own argument (send_queue)
+            """
+            return GrowattServerHandler(
+                send_queuereg, conf, loggerreg, commandresponse, *args
+            )
+
+        self.conf = conf
+        self.send_queuereg = send_queuereg
+        self.loggerreg = loggerreg
+        self.commandresponse = commandresponse
+        self.allow_reuse_address = True
+        super().__init__((conf.grottip, conf.grottport), handler_factory)
+        print(
+            f"\t - GrowattServer - Ready to listen at: {conf.grottip}:{conf.grottport}"
+        )
 
 
 class GrowattServerHandler(socketserver.BaseRequestHandler):
-    def setup(self):
-        self.verbose = self.conf.verbose
+    def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
+        self.commandresponse = commandresponse
+        self.conf = conf
+        self.loggerreg = loggerreg
+        self.send_queuereg = send_queuereg
+        self.verbose = conf.verbose
+        super().__init__(*args)
 
+    def setup(self):
         self.forward_input = ()
         if self.conf.serverforward:
             # Even if the forward failed and Forward().start returned False bool
@@ -724,26 +748,22 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
 
         # wait for self.shutdown_queue to be filled
         self.shutdown_queue.get()
-        return self.close_connection()
+
+    def finish(self):
+        self.close_connection()
 
     def read_data(self):
-        try:
-            while True:
-                data = self.request.recv(1024)
-                if not data:
-                    self.shutdown_queue.put_nowait(True)
-                    break
-                self.process_data(data)
-        except Exception:
-            self.shutdown_queue.put_nowait(True)
+        while True:
+            data = self.request.recv(1024)
+            if not data:
+                self.shutdown_queue.put_nowait(True)
+                break
+            self.process_data(data)
 
     def write_data(self):
-        try:
-            while True:
-                data = self.send_queuereg[self.qname].get()
-                self.request.sendall(data)
-        except Exception:
-            self.shutdown_queue.put_nowait(True)
+        while True:
+            data = self.send_queuereg[self.qname].get()
+            self.request.sendall(data)
 
     def forward_data(self, data, attempts=0):
         if not self.forward_input:
@@ -1015,33 +1035,22 @@ class Server:
         http_server = GrottHttpServer(
             conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
-
-        device_server_handler = GrowattServerHandler
-        device_server_handler.conf = conf
-        device_server_handler.send_queuereg = self.send_queuereg
-        device_server_handler.loggerreg = self.loggerreg
-        device_server_handler.commandresponse = self.commandresponse
         device_server = GrowattServer(
-            (conf.grottip, conf.grottport), device_server_handler
+            conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
 
         try:
-            http_server_thread = threading.Thread(
-                target=http_server.server.serve_forever
-            )
+            http_server_thread = threading.Thread(target=http_server.serve_forever)
             http_server_thread.daemon = True
             http_server_thread.start()
 
             device_server_thread = threading.Thread(target=device_server.serve_forever)
             device_server_thread.daemon = True
             device_server_thread.start()
-            print(
-                f"\t - Grottserver - Ready to listen at {conf.grottip}:{conf.grottport}"
-            )
 
             http_server_thread.join()
             device_server_thread.join()
         except KeyboardInterrupt:
             print("\t - Grottserver - KeyboardInterrupt received, shutting down")
-            http_server.server.shutdown()
+            http_server.shutdown()
             device_server.shutdown()
