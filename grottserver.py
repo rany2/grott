@@ -141,25 +141,25 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             return
         super().send_header(keyword, value)
 
-    def authorize(self):
-        try:
-            token = self.conf.httptoken
-            if token is None:
-                return True
-
-            authorization = self.headers["Authorization"]
-            if authorization.split(" ")[0] != "Bearer":
-                raise ValueError("Invalid authorization header")
-
-            token_hash = hashlib.sha256(
-                " ".join(authorization.split(" ")[1:]).encode("utf-8")
-            ).hexdigest()
-            if token_hash != token:
-                raise ValueError("Incorrect token")
+    def authorized(self):
+        token = self.conf.httptoken
+        if token is None:
             return True
-        except Exception:
-            self.send_error(401, "Unauthorized")
+
+        authorization = self.headers.get("authorization")
+        if authorization is None:
             return False
+
+        if authorization.split(" ")[0] != "Bearer":
+            return False
+
+        token_hash = hashlib.sha256(
+            " ".join(authorization.split(" ")[1:]).encode("utf-8")
+        ).hexdigest()
+        if token_hash.lower() != token.lower():
+            return False
+
+        return True
 
     def match_invertid_to_dataloggerid(self, urlquery):
         dataloggerid = None
@@ -226,7 +226,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         return f"{self.loggerreg[dataloggerid]['ip']}_{self.loggerreg[dataloggerid]['port']}"
 
     def do_GET(self):
-        if not self.authorize():
+        if not self.authorized():
+            self.send_error(401, "Unauthorized")
             return
 
         if self.verbose:
@@ -415,7 +416,8 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_PUT(self):
-        if not self.authorize():
+        if not self.authorized():
+            self.send_error(401, "Unauthorized")
             return
 
         url = urlparse(self.path)
@@ -769,7 +771,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             while True:
                 data = self.request.recv(1024)
                 if not data:
-                    raise Exception("Client disconnected")
+                    raise OSError("Client disconnected")
                 self.process_data(data)
         finally:
             self.shutdown_queue.put_nowait(True)
@@ -790,10 +792,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             fsock.send(data)
             if self.verbose:
                 print(f"\t - Grottserver - Forward data sent for {host}:{port}")
-        except Exception:
+        except OSError:
             try:
                 fsock.close()
-            except Exception:
+            except OSError:
                 pass
             del self.forward_input
 
@@ -836,7 +838,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 if not isinstance(fsock, bool):
                     try:
                         fsock.close()
-                    except Exception:
+                    except OSError:
                         pass
         finally:
             raise SystemExit(0)
