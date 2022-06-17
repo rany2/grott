@@ -132,6 +132,10 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         self.commandresponse = commandresponse
         super().__init__(*args)
 
+    def setup(self):
+        self.request.settimeout(self.conf.httpsockettimeout)
+        super().setup()
+
     def send_header(self, keyword, value):
         if keyword.lower() == "server":
             return
@@ -734,6 +738,9 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
     def handle(self):
         if self.verbose:
             print(f"\t - Grottserver - Client connected: {self.client_address}")
+
+        # set socket timeout to prevent hanging
+        self.request.settimeout(self.conf.serversockettimeout)
 
         # create read and write threads
         read_thread = threading.Thread(
