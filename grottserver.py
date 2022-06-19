@@ -7,7 +7,6 @@ import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
-from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -683,13 +682,10 @@ class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             so we can provide our own argument (send_queue)
             """
             return GrowattServerHandler(
-                send_queuereg, conf, loggerreg, commandresponse, *args
+                send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
             )
 
-        self.conf = conf
-        self.send_queuereg = send_queuereg
-        self.loggerreg = loggerreg
-        self.commandresponse = commandresponse
+        shutdown_queue = {}
         self.allow_reuse_address = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
         print(
@@ -698,11 +694,15 @@ class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 class GrowattServerHandler(socketserver.BaseRequestHandler):
-    def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
+    def __init__(
+        self, send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
+    ):
         self.commandresponse = commandresponse
         self.conf = conf
         self.loggerreg = loggerreg
+        self.loggerreg_lock = threading.Lock()
         self.send_queuereg = send_queuereg
+        self.shutdown_queue = shutdown_queue
         self.verbose = conf.verbose
         super().__init__(*args)
 
@@ -741,7 +741,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             print(f"\t - Grottserver - Command response created for : {self.qname}")
 
         # on any value, shutdown everything
-        self.shutdown_queue = queue.Queue()
+        self.shutdown_queue[self.qname] = queue.Queue()
 
     def handle(self):
         if self.verbose:
@@ -767,7 +767,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         write_thread.start()
 
         # wait for self.shutdown_queue to be filled
-        self.shutdown_queue.get()
+        self.shutdown_queue[self.qname].get()
 
     def finish(self):
         self.close_connection()
@@ -780,7 +780,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     raise OSError("Client disconnected")
                 self.process_data(data)
         finally:
-            self.shutdown_queue.put_nowait(True)
+            self.shutdown_queue[self.qname].put_nowait(True)
 
     def write_data(self):
         try:
@@ -788,7 +788,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 data = self.send_queuereg[self.qname].get()
                 self.request.sendall(data)
         finally:
-            self.shutdown_queue.put_nowait(True)
+            self.shutdown_queue[self.qname].put_nowait(True)
 
     def forward_data(self, data, attempts=0):
         if not self.forward_input:
@@ -826,17 +826,21 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             if self.qname in self.commandresponse:
                 del self.commandresponse[self.qname]
 
-            for key in self.loggerreg.keys():
-                if (
-                    self.loggerreg[key]["ip"] == client_address
-                    and self.loggerreg[key]["port"] == client_port
-                ):
-                    del self.loggerreg[key]
-                    print(
-                        "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
-                        key,
-                    )
-                    break
+            if self.qname in self.shutdown_queue:
+                del self.shutdown_queue[self.qname]
+
+            with self.loggerreg_lock:
+                for key in self.loggerreg.keys():
+                    if (
+                        self.loggerreg[key]["ip"] == client_address
+                        and self.loggerreg[key]["port"] == client_port
+                    ):
+                        del self.loggerreg[key]
+                        print(
+                            "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
+                            key,
+                        )
+                        break
 
             if self.forward_input:
                 fsock, _, _ = self.forward_input
@@ -939,7 +943,18 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     inverterid = result_string[76:96]
                 inverterid = codecs.decode(inverterid, "hex").decode("ascii")
 
-                try:
+                if loggerid in self.loggerreg:
+                    prev_qname = f"{self.loggerreg[loggerid]['ip']}_{self.loggerreg[loggerid]['port']}"
+                    if prev_qname != self.qname:
+                        self.shutdown_queue[prev_qname].put_nowait(True)
+                        print(
+                            f"\t - Grottserver - Shutdown previous connection {prev_qname} for {loggerid}"
+                        )
+
+                with self.loggerreg_lock:
+                    if not loggerid in self.loggerreg:
+                        self.loggerreg[loggerid] = {}
+
                     self.loggerreg[loggerid].update(
                         {
                             "ip": self.client_address[0],
@@ -947,12 +962,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                             "protocol": header[6:8],
                         }
                     )
-                except KeyError:
-                    self.loggerreg[loggerid] = {
-                        "ip": self.client_address[0],
-                        "port": self.client_address[1],
-                        "protocol": header[6:8],
-                    }
 
                 # add invertid
                 self.loggerreg[loggerid].update(
