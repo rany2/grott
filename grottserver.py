@@ -7,6 +7,7 @@ import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
+from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -95,6 +96,11 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
         pass
 
     return body
+
+
+def crc16_verify(data):
+    crc16 = libscrc.modbus(data[:-2])
+    return crc16 == int.from_bytes(data[-2:], "big")
 
 
 def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
@@ -849,6 +855,12 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             print(f"\t - Grottserver - Data received from : {self.qname}")
             print("\t - Grottserver - Original Data:")
             print(format_multi_line("\t\t ", data))
+
+        # Verify CRC16
+        if not crc16_verify(data):
+            print("\t - Grottserver - CRC16 failed")
+            self.shutdown_queue.put_nowait(True)
+            return
 
         # Collect data for MQTT, PVOutput, InfluxDB, etc..
         if len(data) > self.conf.minrecl:
