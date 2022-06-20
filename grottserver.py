@@ -776,7 +776,8 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             while True:
                 data = self.request.recv(1024)
                 if not data:
-                    raise OSError("Client disconnected")
+                    print(f"\t - Grottserver - Client disconnected: {self.client_address}")
+                    break
                 self.process_data(data)
         finally:
             try:
