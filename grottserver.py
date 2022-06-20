@@ -779,7 +779,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     raise OSError("Client disconnected")
                 self.process_data(data)
         finally:
-            self.shutdown_queue[self.qname].put_nowait(True)
+            try:
+                self.shutdown_queue[self.qname].put_nowait(True)
+            except KeyError:
+                pass
 
     def write_data(self):
         try:
@@ -787,7 +790,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 data = self.send_queuereg[self.qname].get()
                 self.request.sendall(data)
         finally:
-            self.shutdown_queue[self.qname].put_nowait(True)
+            try:
+                self.shutdown_queue[self.qname].put_nowait(True)
+            except KeyError:
+                pass
 
     def forward_data(self, data, attempts=0):
         if not self.forward_input:
