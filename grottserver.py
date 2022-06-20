@@ -3,6 +3,7 @@ import hashlib
 import http.server
 import json
 import queue
+import socket
 import socketserver
 import threading
 from collections import defaultdict
@@ -808,7 +809,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print(f"\t - Grottserver - Forward data sent for {host}:{port}")
         except OSError:
             try:
-                fsock.close()
+                fsock.shutdown(socket.SHUT_WR)
             except OSError:
                 pass
             del self.forward_input
@@ -854,7 +855,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             del self.forward_input
             if not isinstance(fsock, bool):
                 try:
-                    fsock.close()
+                    fsock.shutdown(socket.SHUT_WR)
                 except OSError:
                     pass
 
