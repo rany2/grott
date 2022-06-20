@@ -973,10 +973,11 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                         }
                     )
 
-                # add invertid
-                self.loggerreg[loggerid].update(
-                    {inverterid: {"inverterno": header[12:14], "power": 0}}
-                )
+                    # add invertid
+                    self.loggerreg[loggerid].update(
+                        {inverterid: {"inverterno": header[12:14], "power": 0}}
+                    )
+
                 response = createtimecommand(
                     self.conf,
                     protocol,
