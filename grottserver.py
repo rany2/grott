@@ -956,6 +956,11 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                             f"\t - Grottserver - Shutdown previous connection {prev_qname} for {loggerid}"
                         )
 
+                # we need to confirm before we update the self.loggerreg
+                # so we must wait to make sure response is sent before any
+                # possible command from HTTP API
+                self.send_queuereg[self.qname].put(response)
+
                 with self.loggerreg_lock:
                     if not loggerid in self.loggerreg:
                         self.loggerreg[loggerid] = {}
@@ -972,7 +977,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 self.loggerreg[loggerid].update(
                     {inverterid: {"inverterno": header[12:14], "power": 0}}
                 )
-                self.send_queuereg[self.qname].put_nowait(response)
                 response = createtimecommand(
                     self.conf,
                     protocol,
