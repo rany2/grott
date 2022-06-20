@@ -744,8 +744,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         self.shutdown_queue[self.qname] = queue.Queue()
 
     def handle(self):
-        if self.verbose:
-            print(f"\t - Grottserver - Client connected: {self.client_address}")
+        print(f"\t - Grottserver - Client connected: {self.client_address}")
 
         # set socket timeout to prevent hanging
         self.request.settimeout(self.conf.serversockettimeout)
