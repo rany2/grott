@@ -776,7 +776,9 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             while True:
                 data = self.request.recv(1024)
                 if not data:
-                    print(f"\t - Grottserver - Client disconnected: {self.client_address}")
+                    print(
+                        f"\t - Grottserver - Client disconnected: {self.client_address}"
+                    )
                     break
                 self.process_data(data)
         finally:
@@ -821,43 +823,40 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print("\t - Grottserver - Forward failed: ", host, port)
 
     def close_connection(self):
-        try:
-            print("\t - Grottserver - Close connection : ", self.client_address)
+        print("\t - Grottserver - Close connection : ", self.client_address)
 
-            client_address, client_port = self.client_address
+        client_address, client_port = self.client_address
 
-            if self.qname in self.send_queuereg:
-                del self.send_queuereg[self.qname]
+        if self.qname in self.send_queuereg:
+            del self.send_queuereg[self.qname]
 
-            if self.qname in self.commandresponse:
-                del self.commandresponse[self.qname]
+        if self.qname in self.commandresponse:
+            del self.commandresponse[self.qname]
 
-            if self.qname in self.shutdown_queue:
-                del self.shutdown_queue[self.qname]
+        if self.qname in self.shutdown_queue:
+            del self.shutdown_queue[self.qname]
 
-            with self.loggerreg_lock:
-                for key in self.loggerreg.keys():
-                    if (
-                        self.loggerreg[key]["ip"] == client_address
-                        and self.loggerreg[key]["port"] == client_port
-                    ):
-                        del self.loggerreg[key]
-                        print(
-                            "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
-                            key,
-                        )
-                        break
+        with self.loggerreg_lock:
+            for key in self.loggerreg.keys():
+                if (
+                    self.loggerreg[key]["ip"] == client_address
+                    and self.loggerreg[key]["port"] == client_port
+                ):
+                    del self.loggerreg[key]
+                    print(
+                        "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
+                        key,
+                    )
+                    break
 
-            if self.forward_input:
-                fsock, _, _ = self.forward_input
-                del self.forward_input
-                if not isinstance(fsock, bool):
-                    try:
-                        fsock.close()
-                    except OSError:
-                        pass
-        finally:
-            raise SystemExit(0)
+        if self.forward_input:
+            fsock, _, _ = self.forward_input
+            del self.forward_input
+            if not isinstance(fsock, bool):
+                try:
+                    fsock.close()
+                except OSError:
+                    pass
 
     def process_data(self, data):
         # Display data
