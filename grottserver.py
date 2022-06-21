@@ -775,11 +775,11 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
     def read_data(self):
         try:
             while True:
-                data = self.request.recv(1024)
+                try:
+                    data = self.request.recv(1024)
+                except OSError:
+                    data = None
                 if not data:
-                    print(
-                        f"\t - Grottserver - Client disconnected: {self.client_address}"
-                    )
                     break
                 self.process_data(data)
         finally:
@@ -792,7 +792,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         try:
             while True:
                 data = self.send_queuereg[self.qname].get()
-                self.request.sendall(data)
+                try:
+                    self.request.sendall(data)
+                except OSError:
+                    break
         finally:
             try:
                 self.shutdown_queue[self.qname].put_nowait(True)
