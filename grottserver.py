@@ -810,10 +810,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             fsock.send(data)
             if self.verbose:
                 print(f"\t - Grottserver - Forward data sent for {host}:{port}")
-        except OSError:
+        except (OSError, AttributeError):
             try:
                 fsock.shutdown(socket.SHUT_WR)
-            except OSError:
+            except (OSError, AttributeError):
                 pass
             del self.forward_input
 
