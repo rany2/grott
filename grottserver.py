@@ -810,7 +810,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 fsock.shutdown(socket.SHUT_WR)
             except (OSError, AttributeError):
                 pass
-            del self.forward_input
+            self.forward_input = ()
 
             forward = Forward().start(host, port)
             if self.verbose:
@@ -850,7 +850,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
 
         if self.forward_input:
             fsock, _, _ = self.forward_input
-            del self.forward_input
+            self.forward_input = ()
             if not isinstance(fsock, bool):
                 try:
                     fsock.shutdown(socket.SHUT_WR)
