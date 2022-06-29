@@ -98,11 +98,6 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
     return body
 
 
-def crc16_verify(data):
-    crc16 = libscrc.modbus(data[:-2])
-    return crc16 == int.from_bytes(data[-2:], "big")
-
-
 def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
     if "queue" not in commandresponse[qname]:
         commandresponse[qname]["queue"] = {}
@@ -868,12 +863,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             print(f"\t - Grottserver - Data received from : {self.qname}")
             print("\t - Grottserver - Original Data:")
             print(format_multi_line("\t\t ", data))
-
-        # Verify CRC16
-        if not crc16_verify(data):
-            print("\t - Grottserver - CRC16 failed")
-            self.shutdown_queue[self.qname].put_nowait(True)
-            return
 
         # Collect data for MQTT, PVOutput, InfluxDB, etc..
         if len(data) > self.conf.minrecl:
