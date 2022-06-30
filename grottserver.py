@@ -8,6 +8,7 @@ import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
+from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -791,6 +792,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     self.request.sendall(data)
                 except OSError:
                     break
+                sleep(0.850)
         finally:
             try:
                 self.shutdown_queue[self.qname].put_nowait(True)
