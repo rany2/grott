@@ -1,7 +1,7 @@
 import socket
 import struct
 
-from grottdata import procdata
+from grottdata import print, procdata
 
 # import select
 # import time

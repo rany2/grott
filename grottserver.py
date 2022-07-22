@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 import libscrc
 import pytz
 
-from grottdata import decrypt, format_multi_line
+from grottdata import decrypt, format_multi_line, print
 from grottdata import procdata as grottdata
 from grottproxy import Forward
 

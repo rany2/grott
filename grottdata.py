@@ -11,6 +11,14 @@ from itertools import cycle
 
 from paho.mqtt import publish
 
+# Override print statement to always flush
+_print = print
+
+
+def print(*args, **kwargs):
+    kwargs.setdefault("flush", True)
+    return _print(*args, **kwargs)
+
 
 # Formats multi-line data
 def format_multi_line(prefix, string, size=80):

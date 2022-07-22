@@ -1,3 +1,6 @@
+from grottdata import print
+
+
 def grottext(conf, data, jsonmsg):
     ###
     ### Example to sent (http put) to a webserver.

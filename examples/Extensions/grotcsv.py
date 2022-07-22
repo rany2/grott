@@ -2,6 +2,8 @@ import datetime
 import json
 import os
 
+from grottdata import print
+
 
 def open_makedirs(filename, *args, **kwargs):
     """Open file, creating the parent directories if neccesary."""

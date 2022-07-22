@@ -8,7 +8,7 @@ import socket
 import sys
 import time
 
-from grottdata import decrypt, format_multi_line, procdata
+from grottdata import decrypt, format_multi_line, print, procdata
 
 ## to resolve errno 32: broken pipe issue (only linux)
 if sys.platform != "win32":

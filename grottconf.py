@@ -12,7 +12,7 @@ import os
 import sys
 from os import walk
 
-from grottdata import str2bool
+from grottdata import print, str2bool
 
 
 class Conf:

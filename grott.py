@@ -16,6 +16,7 @@
 import sys
 
 from grottconf import Conf
+from grottdata import print
 from grottproxy import Proxy
 from grottserver import Server
 from grottsniffer import Sniff
