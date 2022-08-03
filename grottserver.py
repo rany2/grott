@@ -831,7 +831,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 pass
             self.forward_input = ()
 
-            forward = Forward().start(host, port)
+            forward = Forward(self.conf.forwardsockettimeout).start(host, port)
             if self.verbose:
                 print("\t - Grottserver - Forward started: ", host, port)
             self.forward_input = (forward, host, port)
