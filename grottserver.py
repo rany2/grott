@@ -704,6 +704,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         self.loggerreg_lock = threading.Lock()
         self.send_queuereg = send_queuereg
         self.shutdown_queue = shutdown_queue
+        self.forward_queue = {}
         self.verbose = conf.verbose
         super().__init__(*args)
 
@@ -744,21 +745,28 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         # set socket timeout to prevent hanging
         self.request.settimeout(self.conf.serversockettimeout)
 
-        # create read and write threads
+        # create rw threads
         read_thread = threading.Thread(
             target=self.read_data,
         )
+        read_thread.daemon = True
+        read_thread.start()
+
         write_thread = threading.Thread(
             target=self.write_data,
         )
-
-        # make sure the threads are stopped when the main thread exits
-        read_thread.daemon = True
         write_thread.daemon = True
-
-        # start threads
-        read_thread.start()
         write_thread.start()
+
+        # if forward is enabled, start forward thread
+        if self.forward_input:
+            self.forward_queue[self.qname] = queue.Queue()
+
+            forward_thread = threading.Thread(
+                target=self.forward_data,
+            )
+            forward_thread.daemon = True
+            forward_thread.start()
 
         # wait for self.shutdown_queue to be filled
         self.shutdown_queue[self.qname].get()
@@ -796,9 +804,20 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             except KeyError:
                 pass
 
-    def forward_data(self, data, attempts=0):
-        if not self.forward_input:
-            return
+    def forward_data(self):
+        while True:
+            data = self.forward_queue[self.qname].get()
+            if data is None:
+                fsock, _, _ = self.forward_input
+                self.forward_input = ()
+                if not isinstance(fsock, bool):
+                    try:
+                        fsock.shutdown(socket.SHUT_WR)
+                    except OSError:
+                        pass
+            self.forward_data_op(data)
+
+    def forward_data_op(self, data, attempts=0):
         fsock, host, port = self.forward_input
         try:
             if self.verbose:
@@ -819,7 +838,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print("\t - Grottserver - Forward started: ", host, port)
             self.forward_input = (forward, host, port)
             if attempts < self.conf.forwardsocketretry:
-                self.forward_data(data, attempts + 1)
+                self.forward_data_op(data, attempts + 1)
             else:
                 print("\t - Grottserver - Forward failed: ", host, port)
 
@@ -837,6 +856,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         if self.qname in self.shutdown_queue:
             del self.shutdown_queue[self.qname]
 
+        if self.qname in self.forward_queue:
+            self.forward_queue[self.qname].put(None)
+            del self.forward_queue[self.qname]
+
         with self.loggerreg_lock:
             for key in self.loggerreg.keys():
                 if (
@@ -849,15 +872,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                         key,
                     )
                     break
-
-        if self.forward_input:
-            fsock, _, _ = self.forward_input
-            self.forward_input = ()
-            if not isinstance(fsock, bool):
-                try:
-                    fsock.shutdown(socket.SHUT_WR)
-                except OSError:
-                    pass
 
     def process_data(self, data):
         # Display data
@@ -904,7 +918,8 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print(format_multi_line("\t\t ", response))
 
             # forward data for growatt
-            self.forward_data(data)
+            if self.qname in self.forward_queue:
+                self.forward_queue[self.qname].put_nowait(data)
 
         elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
             # if datarecord send ack.
@@ -912,7 +927,8 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print("\t - Grottserver - " + header[12:16] + " data record received")
 
             # forward data for growatt
-            self.forward_data(data)
+            if self.qname in self.forward_queue:
+                self.forward_queue[self.qname].put_nowait(data)
 
             # create ack response
             if header[6:8] == "02":

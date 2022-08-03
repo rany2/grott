@@ -778,12 +778,7 @@ def procdata(conf, data):
                     print("\t\t - ", pvheader)
                 if conf.verbose:
                     print("\t\t - ", pvdata)
-                reqret = requests.post(
-                    conf.pvurl,
-                    data=pvdata,
-                    headers=pvheader,
-                    timeout=conf.forwardsocketimeout,
-                )
+                reqret = requests.post(conf.pvurl, data=pvdata, headers=pvheader)
                 if conf.verbose:
                     print("\t - " + "Grott PVOutput response: ")
                 if conf.verbose:
@@ -814,22 +809,12 @@ def procdata(conf, data):
                     print("\t\t - ", pvdata1)
                 if conf.verbose:
                     print("\t\t - ", pvdata2)
-                reqret = requests.post(
-                    conf.pvurl,
-                    data=pvdata1,
-                    headers=pvheader,
-                    timeout=conf.forwardsocketimeout,
-                )
+                reqret = requests.post(conf.pvurl, data=pvdata1, headers=pvheader)
                 if conf.verbose:
                     print("\t - " + "Grott PVOutput response SM1: ")
                 if conf.verbose:
                     print("\t\t - ", reqret.text)
-                reqret = requests.post(
-                    conf.pvurl,
-                    data=pvdata2,
-                    headers=pvheader,
-                    timeout=conf.forwardsocketimeout,
-                )
+                reqret = requests.post(conf.pvurl, data=pvdata2, headers=pvheader)
                 if conf.verbose:
                     print("\t - " + "Grott PVOutput response SM2: ")
                 if conf.verbose:
