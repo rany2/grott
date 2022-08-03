@@ -808,12 +808,12 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             data = self.forward_queue[self.qname].get()
             if data is None:
                 fsock, _, _ = self.forward_input
-                self.forward_input = ()
                 if not isinstance(fsock, bool):
                     try:
                         fsock.shutdown(socket.SHUT_WR)
                     except OSError:
                         pass
+                return
             self.forward_data_op(data)
 
     def forward_data_op(self, data, attempts=0):
@@ -829,7 +829,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 fsock.shutdown(socket.SHUT_WR)
             except (OSError, AttributeError):
                 pass
-            self.forward_input = ()
 
             forward = Forward(self.conf.forwardsockettimeout).start(host, port)
             if self.verbose:
