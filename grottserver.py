@@ -672,7 +672,6 @@ class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
             f"\t - GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}"
         )
 
-
 class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
@@ -822,7 +821,6 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         try:
             if self.verbose:
                 print(f"\t - Grottserver - Sending forward data for {host}:{port}")
-            fsock.settimeout(self.conf.forwardsocketimeout)
             fsock.send(data)
             if self.verbose:
                 print(f"\t - Grottserver - Forward data sent for {host}:{port}")

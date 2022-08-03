@@ -23,17 +23,17 @@ delay = 0.0002
 
 
 class Forward:
-    def __init__(self):
+    def __init__(self, timeout):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.forward.settimeout(timeout)
 
     def start(self, host, port):
         try:
             self.forward.connect((host, port))
             return self.forward
         except Exception as e:
-            print(e)
+            print(f"\t - Grott: Forward error: {e}")
             return False
-
 
 class Proxy:
     input_list = []
@@ -90,7 +90,7 @@ class Proxy:
                 self.on_recv(conf)
 
     def on_accept(self, conf):
-        forward = Forward().start(self.forward_to[0], self.forward_to[1])
+        forward = Forward(conf.forwardsocketimeout).start(self.forward_to[0], self.forward_to[1])
         clientsock, clientaddr = self.server.accept()
         if forward:
             if conf.verbose:

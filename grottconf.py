@@ -494,6 +494,8 @@ class Conf:
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
+        if config.has_option("Growatt", "forwardsocketimeout"):
+            self.forwardsocketimeout = config.getint("Growatt", "forwardsocketimeout")
         if config.has_option("Server", "httpip"):
             self.httphost = config.get("Server", "httpip")
         if config.has_option("Server", "httpport"):
@@ -514,8 +516,6 @@ class Conf:
             self.serverforward = config.getboolean("Server", "serverforward")
         if config.has_option("Server", "serversockettimeout"):
             self.serversockettimeout = config.getint("Server", "serversockettimeout")
-        if config.has_option("Server", "forwardsocketimeout"):
-            self.forwardsocketimeout = config.getint("Server", "forwardsocketimeout")
         if config.has_option("Server", "forwardsocketretry"):
             self.forwardsocketretry = config.getint("Server", "forwardsocketretry")
         if config.has_option("MQTT", "nomqtt"):
