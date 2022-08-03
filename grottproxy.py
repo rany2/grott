@@ -90,7 +90,7 @@ class Proxy:
                 self.on_recv(conf)
 
     def on_accept(self, conf):
-        forward = Forward(conf.forwardsocketimeout).start(self.forward_to[0], self.forward_to[1])
+        forward = Forward(conf.forwardsockettimeout).start(self.forward_to[0], self.forward_to[1])
         clientsock, clientaddr = self.server.accept()
         if forward:
             if conf.verbose:

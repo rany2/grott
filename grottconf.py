@@ -44,14 +44,14 @@ class Conf:
         self.httphost = "0.0.0.0"
         self.httpport = 5782
         self.httptoken = None
-        self.registerreadtimeout = 7
-        self.registerwritetimeout = 15
+        self.registerreadtimeout = 7.0
+        self.registerwritetimeout = 15.0
         self.firstping = False
         self.sendseq = 1
         self.serverforward = False
-        self.serversockettimeout = 300
-        self.httpsockettimeout = 10
-        self.forwardsocketimeout = 2
+        self.serversockettimeout = 300.0
+        self.httpsockettimeout = 10.0
+        self.forwardsockettimeout = 2.0
         self.forwardsocketretry = 1
 
         # Growatt server default
@@ -494,8 +494,8 @@ class Conf:
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
-        if config.has_option("Growatt", "forwardsocketimeout"):
-            self.forwardsocketimeout = config.getint("Growatt", "forwardsocketimeout")
+        if config.has_option("Growatt", "forwardsockettimeout"):
+            self.forwardsockettimeout = config.getfloat("Growatt", "forwardsockettimeout")
         if config.has_option("Server", "httpip"):
             self.httphost = config.get("Server", "httpip")
         if config.has_option("Server", "httpport"):
@@ -503,11 +503,11 @@ class Conf:
         if config.has_option("Server", "httptoken"):
             self.httptoken = config.get("Server", "httptoken")
         if config.has_option("Server", "httpsockettimeout"):
-            self.httpsockettimeout = config.getint("Server", "httpsockettimeout")
+            self.httpsockettimeout = config.getfloat("Server", "httpsockettimeout")
         if config.has_option("Server", "registerreadtimeout"):
-            self.registerreadtimeout = config.getint("Server", "registerreadtimeout")
+            self.registerreadtimeout = config.getfloat("Server", "registerreadtimeout")
         if config.has_option("Server", "registerwritetimeout"):
-            self.registerwritetimeout = config.getint("HTTP", "registerwritetimeout")
+            self.registerwritetimeout = config.getfloat("HTTP", "registerwritetimeout")
         if config.has_option("Server", "firstping"):
             self.firstping = config.getboolean("Server", "firstping")
         if config.has_option("Server", "sendseq"):
@@ -515,7 +515,7 @@ class Conf:
         if config.has_option("Server", "serverforward"):
             self.serverforward = config.getboolean("Server", "serverforward")
         if config.has_option("Server", "serversockettimeout"):
-            self.serversockettimeout = config.getint("Server", "serversockettimeout")
+            self.serversockettimeout = config.getfloat("Server", "serversockettimeout")
         if config.has_option("Server", "forwardsocketretry"):
             self.forwardsocketretry = config.getint("Server", "forwardsocketretry")
         if config.has_option("MQTT", "nomqtt"):
