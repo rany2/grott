@@ -51,6 +51,8 @@ class Conf:
         self.serverforward = False
         self.serversockettimeout = 300
         self.httpsockettimeout = 10
+        self.forwardsocketimeout = 2
+        self.forwardsocketretry = 1
 
         # Growatt server default
         self.growattip = "47.91.67.66"
@@ -512,6 +514,10 @@ class Conf:
             self.serverforward = config.getboolean("Server", "serverforward")
         if config.has_option("Server", "serversockettimeout"):
             self.serversockettimeout = config.getint("Server", "serversockettimeout")
+        if config.has_option("Server", "forwardsocketimeout"):
+            self.forwardsocketimeout = config.getint("Server", "forwardsocketimeout")
+        if config.has_option("Server", "forwardsocketretry"):
+            self.forwardsocketretry = config.getint("Server", "forwardsocketretry")
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
         if config.has_option("MQTT", "ip"):

@@ -710,21 +710,15 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self.forward_input = ()
         if self.conf.serverforward:
-            # Even if the forward failed and Forward().start returned False bool
-            # forward_data would reattempt to connect to the growattip:growattport
-            # and try to forward the data again. So we should add it without checking
-            # the return value of Forward().start
-            forward = Forward().start(self.conf.growattip, self.conf.growattport)
-
             self.forward_input = (
-                forward,
+                False,
                 self.conf.growattip,
                 self.conf.growattport,
             )
 
             if self.verbose:
                 print(
-                    "\t - " + "Grottserver - Forward started: ",
+                    "\t - " + "Grottserver - Configured forward for: ",
                     self.conf.growattip,
                     self.conf.growattport,
                 )
@@ -807,6 +801,9 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             return
         fsock, host, port = self.forward_input
         try:
+            if self.verbose:
+                print(f"\t - Grottserver - Sending forward data for {host}:{port}")
+            fsock.settimeout(self.conf.forwardsocketimeout)
             fsock.send(data)
             if self.verbose:
                 print(f"\t - Grottserver - Forward data sent for {host}:{port}")
@@ -821,7 +818,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             if self.verbose:
                 print("\t - Grottserver - Forward started: ", host, port)
             self.forward_input = (forward, host, port)
-            if attempts < 3:
+            if attempts < self.conf.forwardsocketretry:
                 self.forward_data(data, attempts + 1)
             else:
                 print("\t - Grottserver - Forward failed: ", host, port)
