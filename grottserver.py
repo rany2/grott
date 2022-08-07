@@ -15,10 +15,12 @@ import pytz
 
 from grottdata import decrypt, format_multi_line, print
 from grottdata import procdata as grottdata
-from grottproxy import Forward
+from grottproxy import Forward, validate_record
 
-# grottserver.py emulates the server.growatt.com website and is
-# initially developed for debugging and testing grott.
+# grottserver.py emulates the server.growatt.com website and is initial developed for debugging and testing grott.
+# Updated: 2022-08-07
+# Version:
+verrel = "0.0.9"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
@@ -672,6 +674,7 @@ class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
             f"\t - GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}"
         )
 
+
 class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
@@ -877,10 +880,16 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             print("\t - Grottserver - Original Data:")
             print(format_multi_line("\t\t ", data))
 
-        # Verify CRC16
-        if not crc16_verify(data):
-            print("\t - Grottserver - CRC16 failed")
-            self.shutdown_queue[self.qname].put_nowait(True)
+        # validate data (Length + CRC for 05/06)
+        # join gebeurt nu meerdere keren! Stroomlijnen!!!!
+        vdata = "".join("{:02x}".format(n) for n in data)
+        validatecc = validate_record(vdata)
+        if validatecc != 0:
+            print(
+                f"\t - Grottserver - Invalid data record received, processing stopped for this record"
+            )
+            # Create response if needed?
+            # self.send_queuereg[qname].put(response)
             return
 
         # Collect data for MQTT, PVOutput, InfluxDB, etc..
@@ -900,7 +909,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         if protocol in ("05", "06"):
             result_string = decrypt(data)
         else:
-            result_string = data
+            result_string = "".join("{:02x}".format(n) for n in data)
         if self.verbose:
             print("\t - Grottserver - Plain record: ")
             print(format_multi_line("\t\t ", result_string))
@@ -930,17 +939,16 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
 
             # create ack response
             if header[6:8] == "02":
-                # unencrypted ack
-                headerackx = bytes.fromhex(header[0:8] + "0003" + header[12:16] + "00")
+                # protocol 02, unencrypted ack
+                response = bytes.fromhex(header[0:8] + "0003" + header[12:16] + "00")
             else:
-                # encrypted ack
+                # protocol 05/06, encrypted ack
                 headerackx = bytes.fromhex(header[0:8] + "0003" + header[12:16] + "47")
+                # Create CRC 16 Modbus
+                crc16 = libscrc.modbus(headerackx)
+                # create response
+                response = headerackx + crc16.to_bytes(2, "big")
 
-            # Create CRC 16 Modbus
-            crc16 = libscrc.modbus(headerackx)
-
-            # create response
-            response = headerackx + crc16.to_bytes(2, "big")
             if self.verbose:
                 print("\t - Grottserver - Response: ")
                 print(format_multi_line("\t\t", response))
@@ -992,6 +1000,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                         {inverterid: {"inverterno": header[12:14], "power": 0}}
                     )
 
+                # Create time command and put on queue
                 response = createtimecommand(
                     self.conf,
                     protocol,

@@ -495,7 +495,9 @@ class Conf:
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
         if config.has_option("Growatt", "forwardsockettimeout"):
-            self.forwardsockettimeout = config.getfloat("Growatt", "forwardsockettimeout")
+            self.forwardsockettimeout = config.getfloat(
+                "Growatt", "forwardsockettimeout"
+            )
         if config.has_option("Server", "httpip"):
             self.httphost = config.get("Server", "httpip")
         if config.has_option("Server", "httpport"):
