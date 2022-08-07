@@ -287,7 +287,7 @@ def procdata(conf, data):
                             "\t - grottdata - error in keyword processing : ",
                             keyword + " ,data processing stopped",
                         )
-                    return 8
+                    return
 
         # test if pvserial was defined, if not take inverterid from config.
         device_defined = False
@@ -898,9 +898,9 @@ def procdata(conf, data):
                 "fields": {},
             }
 
-        for key in definedkey:
+        for key, value in definedkey.items():
             if key != "date":
-                ifobj["fields"][key] = definedkey[key]
+                ifobj["fields"][key] = value
 
         # Create list for influx
         ifjson = [ifobj]

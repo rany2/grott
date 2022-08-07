@@ -8,20 +8,7 @@ import socket
 import sys
 import time
 
-# import libscrc for additional crc checking
-# for compat reason (generate a message in the log) also done in proxy _init_
-try:
-    import libscrc
-except:
-    print(
-        "\t **********************************************************************************"
-    )
-    print(
-        "\t - Grott - libscrc not installed, no CRC checking only record validation on length!"
-    )
-    print(
-        "\t **********************************************************************************"
-    )
+import libscrc
 
 from grottdata import decrypt, format_multi_line, print, procdata
 
@@ -55,13 +42,7 @@ def validate_record(xdata):
     len_realpayload = (ldata * 2 - 12 - lcrc) / 2
 
     if protocol != "02":
-
-        try:
-            crc_calc = libscrc.modbus(data[0 : ldata - 2])
-        except:
-            # liscrc is not installed yet
-            # print("\t - Grott - Validate datarecord - libscrc not installed, only validation on record length")
-            crc_calc = crc = 0
+        crc_calc = libscrc.modbus(data[0 : ldata - 2])
 
     if len_realpayload == len_orgpayload:
         returncc = 0
@@ -93,21 +74,6 @@ class Proxy:
 
     def __init__(self, conf):
         print("\nGrott proxy mode started")
-
-        # for compatibility reasons test if libscrc is installed and send error message
-        # if not installed processing wil continue but records will only be validated on length and not on crc.
-        try:
-            import libscrc
-        except:
-            print(
-                "\t **********************************************************************************"
-            )
-            print(
-                "\t - Grott - libscrc not installed, no CRC checking only record validation on length!"
-            )
-            print(
-                "\t **********************************************************************************"
-            )
 
         ## to resolve errno 32: broken pipe issue (Linux only)
         if sys.platform != "win32":
