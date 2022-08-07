@@ -879,7 +879,8 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
 
         # Verify CRC16
         if not crc16_verify(data):
-            print("\t - Grottserver - CRC16 failed ignoring data")
+            print("\t - Grottserver - CRC16 failed")
+            self.shutdown_queue[self.qname].put_nowait(True)
             return
 
         # Collect data for MQTT, PVOutput, InfluxDB, etc..
