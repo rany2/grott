@@ -88,7 +88,7 @@ class Proxy:
         # socket.gethostbyname(socket.gethostname())
         try:
             hostname = socket.gethostname()
-            print("Hostname :", hostname)
+            print("Hostname:", hostname)
             print(
                 "IP : ",
                 socket.gethostbyname(hostname),
@@ -137,8 +137,11 @@ class Proxy:
             self.channel[forward] = clientsock
         else:
             if conf.verbose:
-                print("\t - Can't establish connection with remote server.")
-                print("\t - Closing connection with client side", clientaddr)
+                print(
+                    "\t - Can't establish connection with remote server.\n"
+                    "\t - Closing connection with client side",
+                    clientaddr,
+                )
             clientsock.close()
 
     def on_close(self, conf):
@@ -163,9 +166,7 @@ class Proxy:
 
     def on_recv(self, conf):
         data = self.data
-        print("")
-        print("\t - " + "Growatt packet received:")
-        print("\t\t ", self.channel[self.s])
+        print("\n\t - Growatt packet received:" "\n\t\t ", self.channel[self.s])
 
         # test if record is not corrupted
         vdata = "".join("{:02x}".format(n) for n in data)
@@ -182,7 +183,7 @@ class Proxy:
         header = "".join(f"{n:02x}" for n in data[0:8])
         if conf.blockcmd:
             # standard everything is blocked!
-            print("\t - " + "Growatt command block checking started")
+            print("\t - Growatt command block checking started")
             blockflag = True
             # partly block configure Shine commands
             if header[14:16] == "18":
@@ -223,12 +224,15 @@ class Proxy:
                 blockflag = False
 
             if blockflag:
-                print("\t - Grott: Record blocked: ", header[12:16])
                 if header[6:8] == "05" or header[6:8] == "06":
                     blockeddata = decrypt(data)
                 else:
                     blockeddata = data
-                print(format_multi_line("\t\t ", blockeddata))
+                print(
+                    f"\t - Grott: Record blocked: {header[12:16]}"
+                    + "\n"
+                    + format_multi_line("\t\t ", blockeddata),
+                )
                 return
 
         # send data to destination

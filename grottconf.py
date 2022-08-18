@@ -191,7 +191,7 @@ class Conf:
                                 self.ifdbname,
                                 " check user authorisation",
                             )
-                        self.influx = False  # no influx processing any more till restart (and errors repared)
+                        self.influx = False  # no influx processing any more till restart (and errors fixed)
                         raise SystemExit("Grott Influxdb initialisation error")
 
                 self.influxclient.switch_database(self.ifdbname)
@@ -210,7 +210,7 @@ class Conf:
                             "\t - "
                             + "Grott Influxdb-client Library not installed in Python"
                         )
-                    self.influx = False  # no influx processing any more till restart (and errors repared)
+                    self.influx = False  # no influx processing any more till restart (and errors fixed)
                     raise SystemExit("Grott Influxdb initialisation error")
 
                 # self.influxclient = InfluxDBClient(url='192.168.0.211:8086',org=self.iforg, token=self.iftoken)

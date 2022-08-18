@@ -8,6 +8,7 @@ import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
+from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -77,8 +78,9 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
     body = header + body
     body = bytes.fromhex(body)
     if conf.verbose:
-        print("\t - Grottserver - Time plain body : ")
-        print(format_multi_line("\t\t ", body))
+        print(
+            "\t - Grottserver - Time plain body:\n" + format_multi_line("\t\t ", body)
+        )
 
     if protocol != "02":
         # encrypt message
@@ -87,8 +89,10 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
         body = bytes.fromhex(body) + crc16.to_bytes(2, "big")
 
     if conf.verbose:
-        print("\t - Grottserver - Time command created :")
-        print(format_multi_line("\t\t ", body))
+        print(
+            "\t - Grottserver - Time command created:\n"
+            + format_multi_line("\t\t ", body)
+        )
 
     # just to be sure delete register info
     try:
@@ -132,11 +136,11 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         self.verbose = conf.verbose
         self.loggerreg = loggerreg
         self.commandresponse = commandresponse
-        super().__init__(*args)
 
-    def setup(self):
-        self.request.settimeout(self.conf.httpsockettimeout)
-        super().setup()
+        # set variables for StreamRequestHandler's setup()
+        self.timeout = conf.httpsockettimeout
+
+        super().__init__(*args)
 
     def send_header(self, keyword, value):
         if keyword.lower() == "server":
@@ -362,8 +366,10 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
 
             # add header
             if self.verbose:
-                print("\t - Grotthttpserver: command created :")
-                print(format_multi_line("\t\t ", body))
+                print(
+                    "\t - Grotthttpserver: command created:\n"
+                    + format_multi_line("\t\t ", body)
+                )
 
             # queue command
             self.send_queuereg[qname].put_nowait(body)
@@ -583,8 +589,10 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             body = bytes.fromhex(body)
 
             if self.verbose:
-                print("\t - Grotthttpserver - unencrypted command:")
-                print(format_multi_line("\t\t ", body))
+                print(
+                    "\t - Grotthttpserver - unencrypted command:\n"
+                    + format_multi_line("\t\t ", body)
+                )
 
             if self.loggerreg[dataloggerid]["protocol"] != "02":
                 # encrypt message
@@ -690,22 +698,29 @@ class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         )
 
 
-class GrowattServerHandler(socketserver.BaseRequestHandler):
+class GrowattServerHandler(socketserver.StreamRequestHandler):
     def __init__(
         self, send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
     ):
         self.commandresponse = commandresponse
         self.conf = conf
         self.loggerreg = loggerreg
-        self.loggerreg_lock = threading.Lock()
         self.send_queuereg = send_queuereg
         self.shutdown_queue = shutdown_queue
         self.forward_input = ()
         self.forward_queue = {}
         self.verbose = conf.verbose
+
+        # set variables for StreamRequestHandler's setup()
+        self.timeout = conf.serversockettimeout
+        self.disable_nagle_algorithm = True
+
         super().__init__(*args)
 
-    def setup(self):
+    def handle(self):
+        print(f"\t - Grottserver - Client connected: {self.client_address}")
+
+        # setup forwarding to Growatt server if configured
         if self.conf.serverforward:
             self.forward_input = (
                 False,
@@ -720,34 +735,30 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                     self.conf.growattport,
                 )
 
+        # create qname from client address tuple
         self.qname = f"{self.client_address[0]}_{self.client_address[1]}"
 
         # create queue
         self.send_queuereg[self.qname] = queue.Queue()
         if self.verbose:
-            print(f"\t - Grottserver - Send queue created for : {self.qname}")
+            print(f"\t - Grottserver - Send queue created for: {self.qname}")
 
         # create command response
         self.commandresponse[self.qname] = defaultdict(dict)
         if self.verbose:
-            print(f"\t - Grottserver - Command response created for : {self.qname}")
+            print(f"\t - Grottserver - Command response created for: {self.qname}")
 
         # on any value, shutdown everything
         self.shutdown_queue[self.qname] = queue.Queue()
 
-    def handle(self):
-        print(f"\t - Grottserver - Client connected: {self.client_address}")
-
-        # set socket timeout to prevent hanging
-        self.request.settimeout(self.conf.serversockettimeout)
-
-        # create rw threads
+        # create and start read thread
         read_thread = threading.Thread(
             target=self.read_data,
         )
         read_thread.daemon = True
         read_thread.start()
 
+        # create and start write thread
         write_thread = threading.Thread(
             target=self.write_data,
         )
@@ -764,20 +775,26 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             forward_thread.daemon = True
             forward_thread.start()
 
-        # wait for self.shutdown_queue to be filled
+        # wait for self.shutdown_queue to be filled, then shutdown
         self.shutdown_queue[self.qname].get()
 
-    def finish(self):
+        # prepare to close connections
         self.close_connection()
 
     def read_data(self):
         try:
-            while True:
+            while not self.rfile.closed:
                 try:
-                    data = self.request.recv(1024)
+                    data = self.rfile.read(8)
+                    if not data:
+                        break
+                    # header contains length excl the header itself
+                    len_payloadleft = int.from_bytes(data[4:6], "big")
+                    more_data = self.rfile.read(len_payloadleft)
+                    if not more_data:
+                        break
+                    data += more_data
                 except OSError:
-                    data = None
-                if not data:
                     break
                 self.process_data(data)
         finally:
@@ -790,10 +807,17 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         try:
             while True:
                 data = self.send_queuereg[self.qname].get()
+                if not data:
+                    break
                 try:
-                    self.request.sendall(data)
+                    self.wfile.write(data)
+                    self.wfile.flush()
                 except OSError:
                     break
+                # According to Growatt Internal Modbus RS485 RTU Protocol,
+                # wait for minimum 850ms to send a new CMD after last CMD.
+                # Suggestion is 1 second wait time.
+                sleep(1)
         finally:
             try:
                 self.shutdown_queue[self.qname].put_nowait(True)
@@ -829,19 +853,20 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
 
             forward = Forward(self.conf.forwardsockettimeout).start(host, port)
             if self.verbose:
-                print("\t - Grottserver - Forward started: ", host, port)
+                print("\t - Grottserver - Forward started:", host, port)
             self.forward_input = (forward, host, port)
             if attempts < self.conf.forwardsocketretry:
                 self.forward_data_op(data, attempts + 1)
             else:
-                print("\t - Grottserver - Forward failed: ", host, port)
+                print("\t - Grottserver - Forward failed:", host, port)
 
     def close_connection(self):
-        print("\t - Grottserver - Close connection : ", self.client_address)
+        print("\t - Grottserver - Close connection:", self.client_address)
 
         client_address, client_port = self.client_address
 
         if self.qname in self.send_queuereg:
+            self.send_queuereg[self.qname].put_nowait(None)
             del self.send_queuereg[self.qname]
 
         if self.qname in self.commandresponse:
@@ -854,25 +879,23 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             self.forward_queue[self.qname].put(None)
             del self.forward_queue[self.qname]
 
-        with self.loggerreg_lock:
-            for key in self.loggerreg.keys():
-                if (
-                    self.loggerreg[key]["ip"] == client_address
-                    and self.loggerreg[key]["port"] == client_port
-                ):
-                    del self.loggerreg[key]
-                    print(
-                        "\t - Grottserver - config information deleted for datalogger and connected inverters : ",
-                        key,
-                    )
-                    break
+        for key in self.loggerreg.keys():
+            if (
+                self.loggerreg[key]["ip"] == client_address
+                and self.loggerreg[key]["port"] == client_port
+            ):
+                del self.loggerreg[key]
+                print(f"\t - Grottserver - config info deleted for {key}")
+                break
 
     def process_data(self, data):
         # Display data
         if self.verbose:
-            print(f"\t - Grottserver - Data received from : {self.qname}")
-            print("\t - Grottserver - Original Data:")
-            print(format_multi_line("\t\t ", data))
+            print(
+                f"\t - Grottserver - Data received from : {self.qname}\n"
+                + "\t - Grottserver - Original Data:\n"
+                + format_multi_line("\t\t ", data)
+            )
 
         # validate data (Length + CRC for 05/06)
         # join gebeurt nu meerdere keren! Stroomlijnen!!!!
@@ -891,9 +914,7 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             procdata(self.conf, data)
         else:
             if self.conf.verbose:
-                print(
-                    "\t - " + "Data less then minimum record length, data not processed"
-                )
+                print("\t - Data less then minimum record length, data not processed")
 
         # Create header
         header = "".join(f"{n:02x}" for n in data[0:8])
@@ -905,8 +926,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
         else:
             result_string = "".join(f"{n:02x}" for n in data)
         if self.verbose:
-            print("\t - Grottserver - Plain record: ")
-            print(format_multi_line("\t\t ", result_string))
+            print(
+                "\t - Grottserver - Plain record:\n"
+                + format_multi_line("\t\t ", result_string)
+            )
         loggerid = result_string[16:36]
         loggerid = codecs.decode(loggerid, "hex").decode("ascii")
 
@@ -915,8 +938,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
             # if ping send data as reply
             response = data
             if self.verbose:
-                print("\t - Grottserver - 16 - Ping response: ")
-                print(format_multi_line("\t\t ", response))
+                print(
+                    "\t - Grottserver - 16 - Ping response:\n"
+                    + format_multi_line("\t\t ", response)
+                )
 
             # forward data for growatt
             if self.qname in self.forward_queue:
@@ -944,8 +969,10 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 response = headerackx + crc16.to_bytes(2, "big")
 
             if self.verbose:
-                print("\t - Grottserver - Response: ")
-                print(format_multi_line("\t\t", response))
+                print(
+                    "\t - Grottserver - Response:\n"
+                    + format_multi_line("\t\t", response)
+                )
 
             if header[14:16] == "03":
                 # init record register logger/inverter id (including sessionid?)
@@ -977,22 +1004,21 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 # possible command from HTTP API
                 self.send_queuereg[self.qname].put(response)
 
-                with self.loggerreg_lock:
-                    if not loggerid in self.loggerreg:
-                        self.loggerreg[loggerid] = {}
+                if not loggerid in self.loggerreg:
+                    self.loggerreg[loggerid] = {}
 
-                    self.loggerreg[loggerid].update(
-                        {
-                            "ip": self.client_address[0],
-                            "port": self.client_address[1],
-                            "protocol": header[6:8],
-                        }
-                    )
+                self.loggerreg[loggerid].update(
+                    {
+                        "ip": self.client_address[0],
+                        "port": self.client_address[1],
+                        "protocol": header[6:8],
+                    }
+                )
 
-                    # add invertid
-                    self.loggerreg[loggerid].update(
-                        {inverterid: {"inverterno": header[12:14], "power": 0}}
-                    )
+                # add invertid
+                self.loggerreg[loggerid].update(
+                    {inverterid: {"inverterno": header[12:14], "power": 0}}
+                )
 
                 # Create time command and put on queue
                 response = createtimecommand(
@@ -1082,9 +1108,8 @@ class GrowattServerHandler(socketserver.BaseRequestHandler):
                 print(
                     "\t - Grottserver - Put response on queue: ",
                     self.qname,
-                    " msg: ",
+                    " msg:\n" + format_multi_line("\t\t ", response),
                 )
-                print(format_multi_line("\t\t ", response))
             self.send_queuereg[self.qname].put_nowait(response)
 
 
