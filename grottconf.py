@@ -46,12 +46,10 @@ class Conf:
         self.firstping = False
         self.sendseq = 1
         self.serverforward = False
+        self.serversockettimeout = 300.0
         self.httpsockettimeout = 10.0
         self.forwardsocketretry = 1
-
-        # Grott proxy/server mode
-        self.serversockettimeout = 300.0
-        self.forwardsockettimeout = self.serversockettimeout
+        self.forwardsockettimeout = 2.0
 
         # Growatt server default
         self.growattip = "47.91.67.66"

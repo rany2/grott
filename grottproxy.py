@@ -105,7 +105,7 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
     def handle(self):
         pr(f"- Grottproxy - Client connected:", self.client_address)
 
-        self.forward = Forward(self.conf.forwardsockettimeout).start(*self.forward_to)
+        self.forward = Forward(self.conf.serversockettimeout).start(*self.forward_to)
         if not self.forward:
             pr(f"- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
             return
