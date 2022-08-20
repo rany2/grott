@@ -7,7 +7,6 @@ import queue
 import socket
 import socketserver
 import threading
-from time import sleep
 
 import libscrc
 
