@@ -81,8 +81,7 @@ class Conf:
 
         # influxdb default
         self.influx = False
-        self.ifip = "localhost"
-        self.ifport = 8086
+        self.ifurl = "http://localhost:8086"
         self.iftoken = "influx_token"
         self.iforg = "grottorg"
         self.ifbucket = "grottdb"
@@ -127,7 +126,7 @@ class Conf:
                 pr("\n- Grott InfluxDB initiating started")
 
             self.influxclient = InfluxDBClient(
-                url=f"{self.ifip}:{self.ifport}",
+                url=self.ifurl,
                 org=self.iforg,
                 token=self.iftoken,
             )
@@ -185,8 +184,7 @@ class Conf:
             pr("\tpvinvertid:  \t", self.pvinverterid)
         pr("_Influxdb:")
         pr("\tinflux:      \t", self.influx)
-        pr("\tip:          \t", self.ifip)
-        pr("\tport:        \t", self.ifport)
+        pr("\tifurl:       \t", self.ifurl)
         pr("\torganization:\t", self.iforg)
         pr("\tbucket:      \t", self.ifbucket)
         pr("\ttoken:       \t", "**secret**")
@@ -421,10 +419,8 @@ class Conf:
         # INFLUX
         if config.has_option("influx", "influx"):
             self.influx = config.get("influx", "influx")
-        if config.has_option("influx", "ip"):
-            self.ifip = config.get("influx", "ip")
-        if config.has_option("influx", "port"):
-            self.ifport = int(config.get("influx", "port"))
+        if config.has_option("influx", "url"):
+            self.ifurl = config.get("influx", "url")
         if config.has_option("influx", "org"):
             self.iforg = config.get("influx", "org")
         if config.has_option("influx", "bucket"):
@@ -547,19 +543,8 @@ class Conf:
         # Handle Influx
         if os.getenv("ginflux") is not None:
             self.influx = self.getenv("ginflux")
-        if os.getenv("gifip") is not None:
-            try:
-                ipaddress.ip_address(os.getenv("gifip"))
-                self.ifip = self.getenv("gifip")
-            except ValueError:
-                if self.verbose:
-                    pr("\nGrott InfluxDB server IP address env invalid")
-        if os.getenv("gifport") is not None:
-            if 0 <= int(os.getenv("gifport")) <= 65535:
-                self.ifport = int(self.getenv("gifport"))
-            else:
-                if self.verbose:
-                    pr("\nGrott InfluxDB server Port address env invalid")
+        if os.getenv("gifurl") is not None:
+            self.ifurl = self.getenv("gifurl")
         if os.getenv("giforg") is not None:
             self.iforg = self.getenv("giforg")
         if os.getenv("gifbucket") is not None:

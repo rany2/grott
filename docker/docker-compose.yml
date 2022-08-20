@@ -23,8 +23,7 @@ services:
             - gpvinverterid1
             - gpvsystemid1=12345
             - ginflux=False
-            - gifip=localhost
-            - gifport=8086
+            - gifurl=http://localhost:8086
             - giftoken=influx_token
             - giforg=grottorg
             - gifbucket=grottdb
