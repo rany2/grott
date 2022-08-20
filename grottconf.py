@@ -486,9 +486,7 @@ class Conf:
         if config.has_option("Server", "forwardretry"):
             self.forwardretry = config.getint("Server", "forwardretry")
         if config.has_option("Server", "forwardtimeout"):
-            self.forwardtimeout = config.getfloat(
-                "Server", "forwardtimeout"
-            )
+            self.forwardtimeout = config.getfloat("Server", "forwardtimeout")
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
         if config.has_option("MQTT", "ip"):
