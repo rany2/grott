@@ -709,7 +709,7 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
         super().__init__(*args)
 
     def handle(self):
-        pr(f"- Grottserver - Client connected: {self.client_address}")
+        pr(f"- Grottserver - Client connected:", self.client_address)
 
         # setup forwarding to Growatt server if configured
         if self.conf.serverforward:
@@ -721,9 +721,8 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
 
             if self.verbose:
                 pr(
-                    "- Grottserver - Configured forward for: ",
-                    self.conf.growattip,
-                    self.conf.growattport,
+                    "- Grottserver - Configured forward for:f",
+                    f"{self.conf.growattip}: {self.conf.growattport}",
                 )
 
         # create qname from client address tuple
@@ -769,25 +768,25 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
         # wait for self.shutdown_queue to be filled, then shutdown
         self.shutdown_queue[self.qname].get()
 
-        # prepare to close connections
+    def finish(self) -> None:
         self.close_connection()
+        return super().finish()
 
     def read_data(self):
         try:
             while not self.rfile.closed:
-                try:
-                    data = self.rfile.read(8)
-                    if not data:
-                        break
-                    # header contains length excl the header itself
-                    len_payloadleft = int.from_bytes(data[4:6], "big")
-                    more_data = self.rfile.read(len_payloadleft)
-                    if not more_data:
-                        break
-                    data += more_data
-                except OSError:
+                data = self.rfile.read(8)
+                if not data:
                     break
+                # header contains length excl the header itself
+                len_payloadleft = int.from_bytes(data[4:6], "big")
+                more_data = self.rfile.read(len_payloadleft)
+                if not more_data:
+                    break
+                data += more_data
                 self.process_data(data)
+        except Exception:
+            pass
         finally:
             try:
                 self.shutdown_queue[self.qname].put_nowait(True)
@@ -800,15 +799,13 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
                 data = self.send_queuereg[self.qname].get()
                 if not data:
                     break
-                try:
-                    self.wfile.write(data)
-                    self.wfile.flush()
-                except OSError:
-                    break
+                self.wfile.write(data)
+                self.wfile.flush()
                 # According to Growatt Internal Modbus RS485 RTU Protocol,
                 # wait for minimum 850ms to send a new CMD after last CMD.
-                # Suggestion is 1 second wait time.
-                sleep(1)
+                sleep(0.850)
+        except Exception:
+            pass
         finally:
             try:
                 self.shutdown_queue[self.qname].put_nowait(True)
@@ -844,12 +841,12 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
 
             forward = Forward(self.conf.forwardsockettimeout).start(host, port)
             if self.verbose:
-                pr("- Grottserver - Forward started:", host, port)
+                pr(f"- Grottserver - Forward started: {host}:{port}")
             self.forward_input = (forward, host, port)
             if attempts < self.conf.forwardsocketretry:
                 self.forward_data_op(data, attempts + 1)
             else:
-                pr("- Grottserver - Forward failed:", host, port)
+                pr(f"- Grottserver - Forward failed: {host}:{port}")
 
     def close_connection(self):
         pr("- Grottserver - Close connection:", self.client_address)

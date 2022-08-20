@@ -3,29 +3,26 @@
 # Updated: 2022-08-07
 # Version 2.7.5
 
-import select
+import queue
 import socket
-import sys
-import time
+import socketserver
+import threading
+from time import sleep
 
 import libscrc
 
 from grottdata import decrypt, format_multi_line, pr, procdata
 
-## to resolve errno 32: broken pipe issue (only linux)
-if sys.platform != "win32":
-    from signal import SIG_DFL, SIGPIPE, signal
-
-
-# Changing the buffer_size and delay, you can improve the speed and bandwidth.
-# But when buffer get to high or delay go too down, you can broke things
-buffer_size = 4096
-# buffer_size = 65535
-delay = 0.0002
-
 
 def validate_record(xdata):
-    # validata data record on length and CRC (for "05" and "06" records)
+    """validata data record on length and CRC (for "05" and "06" records)
+
+    Args:
+        xdata (str): data record in hex format
+
+    Returns:
+        int: 0 if valid, 8 if invalid
+    """
 
     data = bytes.fromhex(xdata)
     ldata = len(data)
@@ -62,112 +59,149 @@ class Forward:
     def start(self, host, port):
         try:
             self.forward.connect((host, port))
+
+            # Disable Nagle's Algorithm
+            self.forward.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+
             return self.forward
         except Exception as e:
             pr(f"- Grott - grottproxy forward error: {e}")
             return False
 
 
-class Proxy:
-    input_list = []
-    channel = {}
+class GrowattProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """This wrapper will create a Growatt server where the handler has access to the config"""
 
     def __init__(self, conf):
-        pr("\nGrott proxy mode started")
+        def handler_factory(*args):
+            """
+            Using a function to create and return the handler,
+            so we can provide our own argument (config)
+            """
+            return GrowattProxyHandler(conf, *args)
 
-        ## to resolve errno 32: broken pipe issue (Linux only)
-        if sys.platform != "win32":
-            signal(SIGPIPE, SIG_DFL)
-        ##
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # set default grottip address
-        if conf.grottip == "default":
-            conf.grottip = "0.0.0.0"
-        self.server.bind((conf.grottip, conf.grottport))
-        # socket.gethostbyname(socket.gethostname())
-        try:
-            hostname = socket.gethostname()
-            pr("Hostname:", hostname)
-            pr(
-                "IP : ",
-                socket.gethostbyname(hostname),
-                ", port : ",
-                conf.grottport,
-                "\n",
-            )
-        except Exception:
-            pr("IP and port information not available")
+        self.allow_reuse_address = True
+        super().__init__((conf.grottip, conf.grottport), handler_factory)
+        pr(f"- Grottproxy - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
-        self.server.listen(200)
+
+class GrowattProxyHandler(socketserver.StreamRequestHandler):
+    def __init__(self, conf, *args):
+        self.conf = conf
+        self.verbose = conf.verbose
         self.forward_to = (conf.growattip, conf.growattport)
 
-    def main(self, conf):
-        self.input_list.append(self.server)
-        while True:
-            time.sleep(delay)
-            inputready, _, _ = select.select(self.input_list, [], [])
-            for self.s in inputready:
-                if self.s == self.server:
-                    self.on_accept(conf)
+        self.send_to_device = queue.Queue()
+        self.send_to_fwd = queue.Queue()
+
+        self.shutdown_queue = queue.Queue()
+
+        # set variables for StreamRequestHandler's setup()
+        self.timeout = conf.serversockettimeout
+        self.disable_nagle_algorithm = True
+
+        super().__init__(*args)
+
+    def handle(self):
+        pr(f"- Grottproxy - Client connected:", self.client_address)
+
+        self.forward = Forward(self.conf.forwardsockettimeout).start(*self.forward_to)
+        if not self.forward:
+            pr(f"- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
+            return
+
+        read_thread = threading.Thread(
+            target=self.read_data,
+        )
+        read_thread.daemon = True
+        read_thread.start()
+
+        write_thread = threading.Thread(
+            target=self.write_data,
+        )
+        write_thread.daemon = True
+        write_thread.start()
+
+        fwd_read_thread = threading.Thread(target=self.fwd_read_data)
+        fwd_read_thread.daemon = True
+        fwd_read_thread.start()
+
+        fwd_write_thread = threading.Thread(target=self.fwd_write_data)
+        fwd_write_thread.daemon = True
+        fwd_write_thread.start()
+
+        # wait for self.shutdown_queue to be filled, then shutdown
+        self.shutdown_queue.get()
+
+    def finish(self) -> None:
+        self.close_connection()
+        return super().finish()
+
+    def read_data(self):
+        try:
+            while not self.rfile.closed:
+                data = self.rfile.read(8)
+                if not data:
+                    break
+                # header contains length excl the header itself
+                len_payloadleft = int.from_bytes(data[4:6], "big")
+                more_data = self.rfile.read(len_payloadleft)
+                if not more_data:
+                    break
+                data += more_data
+                self.process_data(data, queues=[self.send_to_fwd])
+        except Exception:
+            pr("- Grottproxy - Datalogger read error")
+        finally:
+            self.shutdown_queue.put_nowait(True)
+
+    def write_data(self):
+        try:
+            while True:
+                data = self.send_to_device.get()
+                if not data:
+                    break
+                self.wfile.write(data)
+                self.wfile.flush()
+        except Exception:
+            pr("- Grottproxy - Datalogger write error")
+        finally:
+            self.shutdown_queue.put_nowait(True)
+
+    def fwd_read_data(self):
+        try:
+            while True:
+                data = self.forward.recv(8, socket.MSG_WAITALL)
+                if not data:
+                    break
+                # header contains length excl the header itself
+                len_payloadleft = int.from_bytes(data[4:6], "big")
+                more_data = self.forward.recv(len_payloadleft, socket.MSG_WAITALL)
+                if not more_data:
+                    break
+                data += more_data
+                self.process_data(data, queues=[self.send_to_device])
+        except OSError as e:
+            pr("- Grottproxy - Forward read error")
+        finally:
+            self.shutdown_queue.put_nowait(True)
+
+    def fwd_write_data(self):
+        try:
+            while True:
+                data = self.send_to_fwd.get()
+                if not data:
                     break
                 try:
-                    self.data, self.addr = self.s.recvfrom(buffer_size)
-                except Exception:
-                    if conf.verbose:
-                        pr("- Grott connection error")
-                    self.on_close(conf)
+                    self.forward.send(data)
+                except OSError:
                     break
-                if len(self.data) == 0:
-                    self.on_close(conf)
-                    break
-                self.on_recv(conf)
+        except OSError:
+            pr("- Grottproxy - Forward write error")
+        finally:
+            self.shutdown_queue.put_nowait(True)
 
-    def on_accept(self, conf):
-        forward = Forward(conf.forwardsockettimeout).start(
-            self.forward_to[0], self.forward_to[1]
-        )
-        clientsock, clientaddr = self.server.accept()
-        if forward:
-            if conf.verbose:
-                pr("-", clientaddr, "has connected")
-            self.input_list.append(clientsock)
-            self.input_list.append(forward)
-            self.channel[clientsock] = forward
-            self.channel[forward] = clientsock
-        else:
-            if conf.verbose:
-                pr(
-                    "- Can't establish connection with remote server.\n"
-                    "- Closing connection with client side",
-                    clientaddr,
-                )
-            clientsock.close()
-
-    def on_close(self, conf):
-        if conf.verbose:
-            # try / except to resolve errno 107: Transport endpoint is not connected
-            try:
-                pr("-", self.s.getpeername(), "has disconnected")
-            except Exception:
-                pr("-", "peer has disconnected")
-
-        # remove objects from input_list
-        self.input_list.remove(self.s)
-        self.input_list.remove(self.channel[self.s])
-        out = self.channel[self.s]
-        # close the connection with client
-        self.channel[out].close()  # equivalent to do self.s.close()
-        # close the connection with remote server
-        self.channel[self.s].close()
-        # delete both objects from channel dict
-        del self.channel[out]
-        del self.channel[self.s]
-
-    def on_recv(self, conf):
-        data = self.data
-        pr("\n- Growatt packet received:\n\t", self.channel[self.s])
-
+    def process_data(self, data, queues):
         # test if record is not corrupted
         vdata = "".join("{:02x}".format(n) for n in data)
         validatecc = validate_record(vdata)
@@ -179,13 +213,13 @@ class Proxy:
 
         # FILTER!!!!!!!! Detect if configure data is sent!
         header = "".join(f"{n:02x}" for n in data[0:8])
-        if conf.blockcmd:
+        if self.conf.blockcmd:
             # standard everything is blocked!
             pr("- Growatt command block checking started")
             blockflag = True
             # partly block configure Shine commands
             if header[14:16] == "18":
-                if conf.blockcmd:
+                if self.conf.blockcmd:
                     if header[6:8] == "05" or header[6:8] == "06":
                         confdata = decrypt(data)
                     else:
@@ -199,26 +233,26 @@ class Proxy:
 
                     if header[14:16] == "18":
                         # do not block if configure time command of configure IP (if noipf flag set)
-                        if conf.verbose:
+                        if self.verbose:
                             pr("- Grott: Shine Configure command detected")
-                        if confcmd == "001f" or (confcmd == "0011" and conf.noipf):
+                        if confcmd == "001f" or (confcmd == "0011" and self.conf.noipf):
                             blockflag = False
                             if confcmd == "001f":
                                 confcmd = "Time"
                             if confcmd == "0011":
                                 confcmd = "Change IP"
-                            if conf.verbose:
+                            if self.verbose:
                                 pr(
                                     "- Grott: Configure command not blocked : ",
                                     confcmd,
                                 )
                     else:
                         # All configure inverter commands will be blocked
-                        if conf.verbose:
+                        if self.verbose:
                             pr("- Grott: Inverter Configure command detected")
 
             # allow records:
-            if header[12:16] in conf.recwl:
+            if header[12:16] in self.conf.recwl:
                 blockflag = False
 
             if blockflag:
@@ -234,10 +268,38 @@ class Proxy:
                 return
 
         # send data to destination
-        self.channel[self.s].send(data)
-        if len(data) > conf.minrecl:
+        for q in queues:
+            q.put_nowait(data)
+        if len(data) > self.conf.minrecl:
             # process received data
-            procdata(conf, data)
+            procdata(self.conf, data)
         else:
-            if conf.verbose:
+            if self.verbose:
                 pr("- Data less then minimum record length, data not processed")
+
+    def close_connection(self):
+        pr("- Grottproxy - Close connection:", self.client_address)
+        self.send_to_device.put_nowait(None)
+        self.send_to_fwd.put_nowait(None)
+        if self.forward:
+            self.forward.shutdown(socket.SHUT_WR)
+
+
+class Proxy:
+    def __init__(self, conf):
+        self.conf = conf
+
+    def main(self, conf):
+        if conf.grottip == "default":
+            conf.grottip = "0.0.0.0"
+
+        proxy_server = GrowattProxy(conf)
+        try:
+            proxy_server_thread = threading.Thread(target=proxy_server.serve_forever)
+            proxy_server_thread.daemon = True
+
+            proxy_server_thread.start()
+            proxy_server_thread.join()
+        except KeyboardInterrupt:
+            pr("- Grottproxy - KeyboardInterrupt received, shutting down")
+            proxy_server.shutdown()

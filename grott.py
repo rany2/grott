@@ -35,15 +35,7 @@ if conf.verbose:
 
 if conf.mode == "proxy":
     proxy = Proxy(conf)
-    try:
-        proxy.main(conf)
-    except KeyboardInterrupt:
-        pr("Ctrl C - Stopping server")
-        try:
-            proxy.on_close(conf)
-        except Exception:
-            pr("- no ports to close")
-        sys.exit(1)
+    proxy.main(conf)
 
 elif conf.mode == "sniff":
     sniff = Sniff(conf)
@@ -55,11 +47,7 @@ elif conf.mode == "sniff":
 
 elif conf.mode == "server":
     server = Server(conf)
-    try:
-        server.main(conf)
-    except KeyboardInterrupt:
-        pr("Ctrl C - Stopping server")
-        sys.exit(1)
+    server.main(conf)
 
 else:
     pr("- Grott undefined mode")
