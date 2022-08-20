@@ -642,7 +642,6 @@ def procdata(conf, data):
             _ = conf.ifwrite_api.write(conf.ifbucket, conf.iforg, ifjson)
         except Exception as e:
             pr("- Grott InfluxDB error:", e)
-            raise SystemExit("Grott Influxdb write error, grott will be stopped") from e
 
     else:
         if conf.verbose:

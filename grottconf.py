@@ -184,7 +184,7 @@ class Conf:
             pr("\tpvsystemid:  \t", self.pvsystemid)
             pr("\tpvinvertid:  \t", self.pvinverterid)
         pr("_Influxdb:")
-        pr("\tinflux:     \t", self.influx)
+        pr("\tinflux:      \t", self.influx)
         pr("\tip:          \t", self.ifip)
         pr("\tport:        \t", self.ifport)
         pr("\torganization:\t", self.iforg)
