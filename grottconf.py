@@ -24,15 +24,12 @@ class Conf:
         self.trace = False
         self.cfgfile = "grott.ini"
         self.minrecl = 100
-        self.decrypt = True
-        self.compat = False
         self.invtype = "default"  # specify sepcial invertype default (spf, sph)
         self.includeall = False  # Include all defined keys from layout (also incl = no)
         self.blockcmd = False  # Block Inverter and Shine configure commands
         self.noipf = False  # Allow IP change if needed
         self.gtime = "auto"  # time used =  auto: use record time or if not valid server time, alternative server: use always server time
         self.sendbuf = True  # enable / disable sending historical data from buffer
-        self.valueoffset = 6
         self.inverterid = "automatic"
         self.mode = "proxy"
         self.grottport = 5279
@@ -117,14 +114,6 @@ class Conf:
 
         # Process environmental variable to override config and environmental settings
         self.parserset()
-
-        # Prepare invert settings
-        self.SN = "".join([f"{ord(x):02x}" for x in self.inverterid])
-        self.offset = 6
-        if self.compat:
-            self.offset = int(
-                self.valueoffset
-            )  # set offset for older inverter types or after record change by Growatt
 
         # prepare MQTT security
         if not self.mqttauth:
@@ -257,8 +246,6 @@ class Conf:
         pr("\ttrace:       \t", self.trace)
         pr("\tconfig file: \t", self.cfgfile)
         pr("\tminrecl:     \t", self.minrecl)
-        pr("\tdecrypt:     \t", self.decrypt)
-        pr("\tcompat:      \t", self.compat)
         pr("\tinvtype:     \t", self.invtype)
         pr("\tinclude_all: \t", self.includeall)
         pr("\tblockcmd:    \t", self.blockcmd)
@@ -266,13 +253,10 @@ class Conf:
         pr("\ttime:        \t", self.gtime)
         pr("\tsendbuf:     \t", self.sendbuf)
         pr("\ttimezone:    \t", self.tmzone)
-        pr("\tvalueoffset: \t", self.valueoffset)
-        pr("\toffset:      \t", self.offset)
         pr("\tinverterid:  \t", self.inverterid)
         pr("\tmode:        \t", self.mode)
         pr("\tgrottip      \t", self.grottip)
         pr("\tgrottport    \t", self.grottport)
-        # print("\tSN           \t",self.SN)
         pr("_MQTT:")
         pr("\tnomqtt       \t", self.nomqtt)
         pr("\tmqttip:      \t", self.mqttip)
@@ -427,8 +411,6 @@ class Conf:
         # else : self.verbose = False
         self.verbose = str2bool(self.verbose)
         self.trace = str2bool(self.trace)
-        self.decrypt = str2bool(self.decrypt)
-        self.compat = str2bool(self.compat)
         self.includeall = str2bool(self.includeall)
         self.blockcmd = str2bool(self.blockcmd)
         self.noipf = str2bool(self.noipf)
@@ -455,10 +437,6 @@ class Conf:
             self.minrecl = config.getint("Generic", "minrecl")
         if config.has_option("Generic", "verbose"):
             self.verbose = config.getboolean("Generic", "verbose")
-        if config.has_option("Generic", "decrypt"):
-            self.decrypt = config.getboolean("Generic", "decrypt")
-        if config.has_option("Generic", "compat"):
-            self.compat = config.getboolean("Generic", "compat")
         if config.has_option("Generic", "includeall"):
             self.includeall = config.getboolean("Generic", "includeall")
         if config.has_option("Generic", "invtype"):
@@ -481,8 +459,6 @@ class Conf:
             self.grottip = config.get("Generic", "ip")
         if config.has_option("Generic", "port"):
             self.grottport = config.getint("Generic", "port")
-        if config.has_option("Generic", "valueoffset"):
-            self.valueoffset = config.get("Generic", "valueoffset")
         if config.has_option("Growatt", "ip"):
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
@@ -598,10 +574,6 @@ class Conf:
         if os.getenv("gminrecl") is not None:
             if 0 <= int(os.getenv("gminrecl")) <= 255:
                 self.minrecl = int(self.getenv("gminrecl"))
-        if os.getenv("gdecrypt") is not None:
-            self.decrypt = self.getenv("gdecrypt")
-        if os.getenv("gcompat") is not None:
-            self.compat = self.getenv("gcompat")
         if os.getenv("gincludeall") is not None:
             self.includeall = self.getenv("gincludeall")
         if os.getenv("ginvtype") is not None:
@@ -628,9 +600,6 @@ class Conf:
         if os.getenv("ggrottport") is not None:
             if 0 <= int(os.getenv("ggrottport")) <= 65535:
                 self.grottport = self.getenv("ggrottport")
-        if os.getenv("gvalueoffset") is not None:
-            if 0 <= int(os.getenv("gvalueoffset")) <= 255:
-                self.valueoffset = self.getenv("gvalueoffset")
         if os.getenv("ggrowattip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("ggrowattip"))
