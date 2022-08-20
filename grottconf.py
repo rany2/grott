@@ -5,12 +5,13 @@
 
 import argparse
 import configparser
-import io
 import ipaddress
 import json
 import os
-import sys
-from os import walk
+
+from influxdb_client import InfluxDBClient
+from influxdb_client.client.write_api import \
+    SYNCHRONOUS as INFLUXDB_SYNCHRONOUS
 
 from grottdata import pr, str2bool
 
@@ -34,7 +35,6 @@ class Conf:
         self.mode = "proxy"
         self.grottport = 5279
         self.grottip = "default"  # connect to server IP adress
-        self.outfile = "sys.stdout"
         self.tmzone = "local"  # set timezone (at this moment only used for influxdb)
         self.timeout = 300.0  # timeout for socket to datalogger (and forwarding socket when in proxy mode only)
 
@@ -81,12 +81,8 @@ class Conf:
 
         # influxdb default
         self.influx = False
-        self.influx2 = False
-        self.ifdbname = "grottdb"
         self.ifip = "localhost"
         self.ifport = 8086
-        self.ifuser = "grott"
-        self.ifpsw = "growatt2020"
         self.iftoken = "influx_token"
         self.iforg = "grottorg"
         self.ifbucket = "grottdb"
@@ -127,114 +123,19 @@ class Conf:
 
         # prepare influxDB
         if self.influx:
-            if self.ifip == "localhost":
-                self.ifip = "0.0.0.0"
-            if not self.influx2:
-                if self.verbose:
-                    pr("")
-                if self.verbose:
-                    pr("- Grott InfluxDB V1 initiating started")
-                try:
-                    from influxdb import InfluxDBClient
-                except ImportError:
-                    if self.verbose:
-                        pr("- Grott Influxdb Library not installed in Python")
-                    self.influx = False  # no influx processing any more till restart (and errors repared)
-                    raise SystemExit("Grott Influxdb initialisation error")
+            if self.verbose:
+                pr("\n- Grott InfluxDB initiating started")
 
-                self.influxclient = InfluxDBClient(
-                    host=self.ifip,
-                    port=self.ifport,
-                    timeout=3,
-                    username=self.ifuser,
-                    password=self.ifpsw,
-                )
-
-                try:
-                    databases = [
-                        db["name"] for db in self.influxclient.get_list_database()
-                    ]
-                except Exception as e:
-                    if self.verbose:
-                        pr("- Grott can not contact InfluxDB")
-                    self.influx = False  # no influx processing any more till restart (and errors repared)
-                    pr("-", e)
-                    raise SystemExit("Grott Influxdb initialisation error")
-
-                # print(databases)
-                if self.ifdbname not in databases:
-                    if self.verbose:
-                        pr(
-                            "- Grott grottdb not yet defined in influx, will  be created"
-                        )
-                    try:
-                        self.influxclient.create_database(self.ifdbname)
-                    except Exception:
-                        if self.verbose:
-                            pr(
-                                "- Grott Unable to create or connect to influx database:",
-                                self.ifdbname,
-                                " check user authorisation",
-                            )
-                        self.influx = False  # no influx processing any more till restart (and errors fixed)
-                        raise SystemExit("Grott Influxdb initialisation error")
-
-                self.influxclient.switch_database(self.ifdbname)
-            else:
-
-                if self.verbose:
-                    pr("")
-                if self.verbose:
-                    pr("- Grott InfluxDB V2 initiating started")
-                try:
-                    from influxdb_client import InfluxDBClient
-                    from influxdb_client.client.write_api import SYNCHRONOUS
-                except ImportError:
-                    if self.verbose:
-                        pr("- Grott Influxdb-client Library not installed")
-                    self.influx = False  # no influx processing any more till restart (and errors fixed)
-                    raise SystemExit("Grott Influxdb initialisation error")
-
-                # self.influxclient = InfluxDBClient(url='192.168.0.211:8086',org=self.iforg, token=self.iftoken)
-                self.influxclient = InfluxDBClient(
-                    url=f"{self.ifip}:{self.ifport}",
-                    org=self.iforg,
-                    token=self.iftoken,
-                )
-                self.ifbucket_api = self.influxclient.buckets_api()
-                self.iforganization_api = self.influxclient.organizations_api()
-                self.ifwrite_api = self.influxclient.write_api(
-                    write_options=SYNCHRONOUS
-                )
-
-                try:
-                    buckets = self.ifbucket_api.find_bucket_by_name(self.ifbucket)
-                    organizations = self.iforganization_api.find_organizations()
-                    # print(organizations)
-                    if buckets is None:
-                        pr("- influxDB bucket ", self.ifbucket, "not defined")
-                        self.influx = False
-                        raise SystemExit("Grott Influxdb initialisation error")
-                    orgfound = False
-                    for org in organizations:
-                        if org.name == self.iforg:
-                            orgfound = True
-                            break
-                    if not orgfound:
-                        pr(
-                            "- influxDB organization",
-                            self.iforg,
-                            "not defined or no authorisation to check",
-                        )
-                        ##self.influx = False
-                        ##raise SystemExit("Grott Influxdb initialisation error")
-
-                except Exception as e:
-                    if self.verbose:
-                        pr("- Grott error: can not contact InfluxDB")
-                    pr(e)
-                    self.influx = False  # no influx processing any more till restart (and errors repared)
-                    raise SystemExit("Grott Influxdb initialisation error")
+            self.influxclient = InfluxDBClient(
+                url=f"{self.ifip}:{self.ifport}",
+                org=self.iforg,
+                token=self.iftoken,
+            )
+            self.ifbucket_api = self.influxclient.buckets_api()
+            self.iforganization_api = self.influxclient.organizations_api()
+            self.ifwrite_api = self.influxclient.write_api(
+                write_options=INFLUXDB_SYNCHRONOUS
+            )
 
     def print(self):
         pr("\nGrott settings:\n")
@@ -265,8 +166,8 @@ class Conf:
         pr("\tmqtttretain: \t", self.mqttretain)
         pr("\tmqtttauth:   \t", self.mqttauth)
         pr("\tmqttuser:    \t", self.mqttuser)
-        pr("\tmqttpsw:     \t", "**secret**")  # scramble output if tested!
-        # print("\tmqttpsw:     \t",self.mqttpsw)                       #scramble output if tested!
+        pr("\tmqttpsw:     \t", "**secret**")
+        # print("\tmqttpsw:     \t",self.mqttpsw)
         pr("_Growatt server:")
         pr("\tgrowattip:   \t", self.growattip)
         pr("\tgrowattport: \t", self.growattport)
@@ -283,14 +184,9 @@ class Conf:
             pr("\tpvsystemid:  \t", self.pvsystemid)
             pr("\tpvinvertid:  \t", self.pvinverterid)
         pr("_Influxdb:")
-        pr("\tinflux:      \t", self.influx)
-        pr("\tinflux2:     \t", self.influx2)
-        pr("\tdatabase:    \t", self.ifdbname)
+        pr("\tinflux:     \t", self.influx)
         pr("\tip:          \t", self.ifip)
         pr("\tport:        \t", self.ifport)
-        pr("\tuser:        \t", self.ifuser)
-        pr("\tpassword:    \t", "**secret**")
-        # print("\tpassword:    \t",self.ifpsw)
         pr("\torganization:\t", self.iforg)
         pr("\tbucket:      \t", self.ifbucket)
         pr("\ttoken:       \t", "**secret**")
@@ -360,9 +256,6 @@ class Conf:
 
         if args.c is not None:
             self.cfgfile = args.c
-        # if (args.o is not None) : sys.stdout = open(args.o, 'wb',0) changed to support unbuffered output in windows !!!
-        if args.o is not None:
-            sys.stdout = io.TextIOWrapper(open(args.o, "wb", 0), write_through=True)
         self.verbose = args.verbose
         self.anomqtt = args.nomqtt
         self.apvoutput = args.pvoutput
@@ -383,7 +276,6 @@ class Conf:
             pr("\nGrott Command line parameters processed:")
             pr("\tverbose:     \t", self.verbose)
             pr("\tconfig file: \t", self.cfgfile)
-            pr("\toutput file: \t", sys.stdout)
             pr("\tnomqtt:      \t", self.anomqtt)
             pr("\tinverterid:  \t", self.inverterid)
             pr("\tpvoutput:    \t", self.apvoutput)
@@ -424,7 +316,6 @@ class Conf:
         self.pvtemp = str2bool(self.pvtemp)
         #
         self.influx = str2bool(self.influx)
-        self.influx2 = str2bool(self.influx2)
         self.extension = str2bool(self.extension)
 
     def procconf(self):
@@ -530,25 +421,17 @@ class Conf:
         # INFLUX
         if config.has_option("influx", "influx"):
             self.influx = config.get("influx", "influx")
-        if config.has_option("influx", "influx2"):
-            self.influx2 = config.get("influx", "influx2")
-        if config.has_option("influx", "dbname"):
-            self.ifdbname = config.get("influx", "dbname")
         if config.has_option("influx", "ip"):
             self.ifip = config.get("influx", "ip")
         if config.has_option("influx", "port"):
             self.ifport = int(config.get("influx", "port"))
-        if config.has_option("influx", "user"):
-            self.ifuser = config.get("influx", "user")
-        if config.has_option("influx", "password"):
-            self.ifpsw = config.get("influx", "password")
         if config.has_option("influx", "org"):
             self.iforg = config.get("influx", "org")
         if config.has_option("influx", "bucket"):
             self.ifbucket = config.get("influx", "bucket")
         if config.has_option("influx", "token"):
             self.iftoken = config.get("influx", "token")
-        # extensionINFLUX
+        # extension
         if config.has_option("extension", "extension"):
             self.extension = config.get("extension", "extension")
         if config.has_option("extension", "extname"):
@@ -664,10 +547,6 @@ class Conf:
         # Handle Influx
         if os.getenv("ginflux") is not None:
             self.influx = self.getenv("ginflux")
-        if os.getenv("ginflux2") is not None:
-            self.influx2 = self.getenv("ginflux2")
-        if os.getenv("gifdbname") is not None:
-            self.ifdbname = self.getenv("gifdbname")
         if os.getenv("gifip") is not None:
             try:
                 ipaddress.ip_address(os.getenv("gifip"))
@@ -681,10 +560,6 @@ class Conf:
             else:
                 if self.verbose:
                     pr("\nGrott InfluxDB server Port address env invalid")
-        if os.getenv("gifuser") is not None:
-            self.ifuser = self.getenv("gifuser")
-        if os.getenv("gifpassword") is not None:
-            self.ifpsw = self.getenv("gifpassword")
         if os.getenv("giforg") is not None:
             self.iforg = self.getenv("giforg")
         if os.getenv("gifbucket") is not None:
@@ -1483,15 +1358,14 @@ class Conf:
         self.recorddict.update(self.recorddict12)  # T05NNNNXSPH
         f = []
         pr("\nGrott process json layout files")
-        for _, _, filenames in walk("."):
+        for _, _, filenames in os.walk("."):
             f.extend(filenames)
             break
         for x in f:
-            if (x[0] == "t" or x[0] == "T") and x.find(".json") > 0:
+            if x[0].lower() == "t" and x.find(".json") > 0:
                 pr(x)
                 with open(x, "r", encoding="utf-8") as json_file:
                     dicttemp = json.load(json_file)
-                    # print(dicttemp)
                     self.recorddict.update(dicttemp)
 
         if self.verbose:

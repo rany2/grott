@@ -56,9 +56,10 @@ def decrypt(decdata):
 
 
 def str2bool(defstr):
-    if defstr in ("True", "true", "TRUE", "y", "Y", "yes", "YES", 1, "1"):
+    defstr = str(defstr).lower()
+    if defstr in ("true", "y", "yes", "1"):
         defret = True
-    if defstr in ("False", "false", "FALSE", "n", "N", "no", "NO", 0, "0"):
+    if defstr in ("false", "n", "no", "0"):
         defret = False
     if "defret" in locals():
         return defret
@@ -636,14 +637,9 @@ def procdata(conf, data):
             pr("- Grott influxdb jsonmsg:\n" + format_multi_line("\t", str(ifjson)))
 
         try:
-            if conf.influx2:
-                if conf.verbose:
-                    pr("- Grott write to influxdb v2")
-                _ = conf.ifwrite_api.write(conf.ifbucket, conf.iforg, ifjson)
-            else:
-                if conf.verbose:
-                    pr("- Grott write to influxdb v1")
-                _ = conf.influxclient.write_points(ifjson)
+            if conf.verbose:
+                pr("- Grott write to influxdb")
+            _ = conf.ifwrite_api.write(conf.ifbucket, conf.iforg, ifjson)
         except Exception as e:
             pr("- Grott InfluxDB error:", e)
             raise SystemExit("Grott Influxdb write error, grott will be stopped") from e
