@@ -26,8 +26,8 @@ class Sniff:
                 if conf.trace:
                     # fmt: off
                     pr("- IPv4 Packet protocol 8:"
-                    +"\n\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},"
-                    +"\n\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
+                    +f"\n\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},"
+                    +f"\n\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
                     # fmt: on
 
                 # TCP
@@ -36,9 +36,9 @@ class Sniff:
                     self.tcp = TCP(self.ipv4.data)
                     if conf.trace:
                         # fmt: off
-                        pr("- TCP Segment protocol 6 found")
-                        pr("\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
-                        pr("\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                        pr("- TCP Segment protocol 6 found"
+                        +f"\n\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dst_port}"
+                        +f"\n\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
                         # fmt: on
 
                     if (
@@ -47,13 +47,13 @@ class Sniff:
                     ):
                         if conf.verbose:
                             # fmt: off
-                            pr("- TCP Segment Growatt:")
-                            pr("\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
-                            pr(f"\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
-                            pr(f"\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}")
-                            pr("\t - Flags:")
-                            pr(f"\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}")
-                            pr(f"\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
+                            pr("- TCP Segment Growatt:"
+                            +f"\n\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}"
+                            +f"\n\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}"
+                            +f"\n\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}"
+                            +"\n\t - Flags:"
+                            +f"\n\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}"
+                            +f"\n\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
                             # fmt: on
 
                         # fmt: off
@@ -68,23 +68,21 @@ class Sniff:
                 else:
                     if conf.trace:
                         pr("- Other IPv4 Data")
-                        # print(format_multi_line(DATA_TAB_2, self.ipv4.data))
-
             else:
                 if conf.trace:
                     pr("- No IPV4 Ethernet Data")
-                    # print(TAB_1 + format_multi_line(DATA_TAB_1, self.eth.data))
 
 
-# Returns MAC as string from bytes (ie AA:BB:CC:DD:EE:FF)
 def get_mac_addr(mac_raw):
+    """Returns MAC as string from bytes (ie AA:BB:CC:DD:EE:FF)"""
     byte_str = map("{:02x}".format, mac_raw)
     mac_addr = ":".join(byte_str).upper()
     return mac_addr
 
 
-# Unpack ethernet packet
 class Ethernet:
+    """Unpack ethernet packet"""
+
     def __init__(self, raw_data):
 
         dest, src, prototype = struct.unpack("! 6s 6s H", raw_data[:14])
@@ -95,8 +93,9 @@ class Ethernet:
         self.data = raw_data[14:]
 
 
-# Unpacks IPV4 packet
 class IPv4:
+    """Unpacks IPV4 packet"""
+
     def __init__(self, raw_data):
         version_header_length = raw_data[0]
         self.version = version_header_length >> 4
@@ -108,13 +107,14 @@ class IPv4:
         self.target = self.ipv4addr(target)
         self.data = raw_data[self.header_length :]
 
-    # Returns properly formatted IPv4 address
     def ipv4addr(self, addr):
+        """Returns properly formatted IPv4 address"""
         return ".".join(map(str, addr))
 
 
-# Unpack TCP Segment
 class TCP:
+    """Unpack TCP Segment"""
+
     def __init__(self, raw_data):
         (
             self.src_port,

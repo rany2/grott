@@ -24,7 +24,7 @@ verrel = "0.0.9"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
-    # send response
+    """send http response"""
     self.send_response(responserc)
     self.send_header("Content-type", responseheader)
     self.end_headers()
