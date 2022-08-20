@@ -383,7 +383,7 @@ def procdata(conf, data):
                     printkey = f"{value / keydivide:.1f}"
                 else:
                     printkey = value
-                pr("\t - ", key.ljust(20) + " : ", printkey)
+                pr("\t- ", key.ljust(20) + " : ", printkey)
 
         # create JSON message  (first create obj dict and then convert to a JSON message)
 
