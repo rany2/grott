@@ -47,7 +47,7 @@ class Conf:
         self.firstping = False
         self.sendseq = 1
         self.serverforward = False
-        self.httpsockettimeout = 10.0
+        self.httptimeout = 10.0
         self.forwardretry = 1
         self.forwardtimeout = 2.0
 
@@ -471,8 +471,8 @@ class Conf:
         if config.has_option("Server", "httptoken"):
             self.httptoken = config.get("Server", "httptoken")
 
-        if config.has_option("Server", "httpsockettimeout"):
-            self.httpsockettimeout = config.getfloat("Server", "httpsockettimeout")
+        if config.has_option("Server", "httptimeout"):
+            self.httptimeout = config.getfloat("Server", "httptimeout")
         if config.has_option("Server", "registerreadtimeout"):
             self.registerreadtimeout = config.getfloat("Server", "registerreadtimeout")
         if config.has_option("Server", "registerwritetimeout"):

@@ -133,7 +133,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         self.commandresponse = commandresponse
 
         # set variables for StreamRequestHandler's setup()
-        self.timeout = conf.httpsockettimeout
+        self.timeout = conf.httptimeout
 
         super().__init__(*args)
 
