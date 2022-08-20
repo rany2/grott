@@ -670,7 +670,7 @@ class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         pr(f"- GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}")
 
 
-class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class GrottServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
@@ -679,17 +679,17 @@ class GrowattServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
-            return GrowattServerHandler(
+            return GrottServerHandler(
                 send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
             )
 
         shutdown_queue = {}
         self.allow_reuse_address = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
-        pr(f"- GrowattServer - Ready to listen at: {conf.grottip}:{conf.grottport}")
+        pr(f"- Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
-class GrowattServerHandler(socketserver.StreamRequestHandler):
+class GrottServerHandler(socketserver.StreamRequestHandler):
     def __init__(
         self, send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
     ):
@@ -1110,7 +1110,7 @@ class Server:
         http_server = GrottHttpServer(
             conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
-        device_server = GrowattServer(
+        device_server = GrottServer(
             conf, self.send_queuereg, self.loggerreg, self.commandresponse
         )
 
