@@ -97,7 +97,7 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
         self.shutdown_queue = queue.Queue()
 
         # set variables for StreamRequestHandler's setup()
-        self.timeout = conf.serversockettimeout
+        self.timeout = conf.timeout
         self.disable_nagle_algorithm = True
 
         super().__init__(*args)
@@ -105,7 +105,7 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
     def handle(self):
         pr(f"- Grottproxy - Client connected:", self.client_address)
 
-        self.forward = Forward(self.conf.serversockettimeout).start(*self.forward_to)
+        self.forward = Forward(self.conf.timeout).start(*self.forward_to)
         if not self.forward:
             pr(f"- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
             return

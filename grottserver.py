@@ -703,7 +703,7 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
         self.verbose = conf.verbose
 
         # set variables for StreamRequestHandler's setup()
-        self.timeout = conf.serversockettimeout
+        self.timeout = conf.timeout
         self.disable_nagle_algorithm = True
 
         super().__init__(*args)
@@ -839,11 +839,11 @@ class GrowattServerHandler(socketserver.StreamRequestHandler):
             except (OSError, AttributeError):
                 pass
 
-            forward = Forward(self.conf.forwardsockettimeout).start(host, port)
+            forward = Forward(self.conf.forwardtimeout).start(host, port)
             if self.verbose:
                 pr(f"- Grottserver - Forward started: {host}:{port}")
             self.forward_input = (forward, host, port)
-            if attempts < self.conf.forwardsocketretry:
+            if attempts < self.conf.forwardretry:
                 self.forward_data_op(data, attempts + 1)
             else:
                 pr(f"- Grottserver - Forward failed: {host}:{port}")

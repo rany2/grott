@@ -36,6 +36,7 @@ class Conf:
         self.grottip = "default"  # connect to server IP adress
         self.outfile = "sys.stdout"
         self.tmzone = "local"  # set timezone (at this moment only used for influxdb)
+        self.timeout = 300.0  # timeout for socket to datalogger (and forwarding socket when in proxy mode only)
 
         # Grott server mode
         self.httphost = "0.0.0.0"
@@ -46,10 +47,9 @@ class Conf:
         self.firstping = False
         self.sendseq = 1
         self.serverforward = False
-        self.serversockettimeout = 300.0
         self.httpsockettimeout = 10.0
-        self.forwardsocketretry = 1
-        self.forwardsockettimeout = 2.0
+        self.forwardretry = 1
+        self.forwardtimeout = 2.0
 
         # Growatt server default
         self.growattip = "47.91.67.66"
@@ -457,20 +457,20 @@ class Conf:
             self.grottip = config.get("Generic", "ip")
         if config.has_option("Generic", "port"):
             self.grottport = config.getint("Generic", "port")
+        if config.has_option("Generic", "timeout"):
+            self.timeout = config.getfloat("Generic", "timeout")
+
         if config.has_option("Growatt", "ip"):
             self.growattip = config.get("Growatt", "ip")
         if config.has_option("Growatt", "port"):
             self.growattport = config.getint("Growatt", "port")
-        if config.has_option("Growatt", "forwardsockettimeout"):
-            self.forwardsockettimeout = config.getfloat(
-                "Growatt", "forwardsockettimeout"
-            )
         if config.has_option("Server", "httpip"):
             self.httphost = config.get("Server", "httpip")
         if config.has_option("Server", "httpport"):
             self.httpport = config.getint("Server", "httpport")
         if config.has_option("Server", "httptoken"):
             self.httptoken = config.get("Server", "httptoken")
+
         if config.has_option("Server", "httpsockettimeout"):
             self.httpsockettimeout = config.getfloat("Server", "httpsockettimeout")
         if config.has_option("Server", "registerreadtimeout"):
@@ -483,10 +483,12 @@ class Conf:
             self.sendseq = config.getint("Server", "sendseq")
         if config.has_option("Server", "serverforward"):
             self.serverforward = config.getboolean("Server", "serverforward")
-        if config.has_option("Server", "serversockettimeout"):
-            self.serversockettimeout = config.getfloat("Server", "serversockettimeout")
-        if config.has_option("Server", "forwardsocketretry"):
-            self.forwardsocketretry = config.getint("Server", "forwardsocketretry")
+        if config.has_option("Server", "forwardretry"):
+            self.forwardretry = config.getint("Server", "forwardretry")
+        if config.has_option("Server", "forwardtimeout"):
+            self.forwardtimeout = config.getfloat(
+                "Server", "forwardtimeout"
+            )
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
         if config.has_option("MQTT", "ip"):
