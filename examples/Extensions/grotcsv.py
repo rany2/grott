@@ -2,7 +2,7 @@ import datetime
 import json
 import os
 
-from grottdata import print
+from grottdata import pr
 
 
 def open_makedirs(filename, *args, **kwargs):
@@ -26,7 +26,7 @@ def grottext(conf, data, jsonmsg):
 
     if conf.verbose:
 
-        print("\t - " + "Grott extension module entered ")
+        pr("- Grott extension module entered ")
         ###
         ### uncomment this print statements if you want to see the information that is availble.
         ###
@@ -76,9 +76,9 @@ def grottext(conf, data, jsonmsg):
     csvline = ",".join(str(values[k]) for k in csventries) + "\n"
 
     if conf.verbose:
-        print("csvfile: ", csvfile)
-        print("csvheader: ", csvheader)
-        print("csvline: ", csvline)
+        pr("csvfile: ", csvfile)
+        pr("csvheader: ", csvheader)
+        pr("csvline: ", csvline)
 
     with open_makedirs(csvfile, "a") as f:
         if os.path.getsize(csvfile) == 0:

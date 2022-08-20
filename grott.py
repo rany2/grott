@@ -16,7 +16,7 @@
 import sys
 
 from grottconf import Conf
-from grottdata import print
+from grottdata import pr
 from grottproxy import Proxy
 from grottserver import Server
 from grottsniffer import Sniff
@@ -38,11 +38,11 @@ if conf.mode == "proxy":
     try:
         proxy.main(conf)
     except KeyboardInterrupt:
-        print("Ctrl C - Stopping server")
+        pr("Ctrl C - Stopping server")
         try:
             proxy.on_close(conf)
         except Exception:
-            print("\t - no ports to close")
+            pr("- no ports to close")
         sys.exit(1)
 
 elif conf.mode == "sniff":
@@ -50,7 +50,7 @@ elif conf.mode == "sniff":
     try:
         sniff.main(conf)
     except KeyboardInterrupt:
-        print("Ctrl C - Stopping server")
+        pr("Ctrl C - Stopping server")
         sys.exit(1)
 
 elif conf.mode == "server":
@@ -58,8 +58,8 @@ elif conf.mode == "server":
     try:
         server.main(conf)
     except KeyboardInterrupt:
-        print("Ctrl C - Stopping server")
+        pr("Ctrl C - Stopping server")
         sys.exit(1)
 
 else:
-    print("- Grott undefined mode")
+    pr("- Grott undefined mode")

@@ -1,4 +1,4 @@
-from grottdata import print
+from grottdata import pr
 
 
 def grottext(conf, data, jsonmsg):
@@ -15,7 +15,7 @@ def grottext(conf, data, jsonmsg):
     resultcode = 0
     if conf.verbose:
 
-        print("\t - " + "Grott extension module entered ")
+        pr("- Grott extension module entered")
         ###
         ### uncomment this print statements if you want to see the information that is availble.
         ###

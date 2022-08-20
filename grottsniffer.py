@@ -1,24 +1,15 @@
 import socket
 import struct
 
-from grottdata import print, procdata
-
-# import select
-# import time
-# import sys
-
-
-# import textwrap
-# from itertools import cycle # to support "cycling" the iterator
-# import time, json, datetime, codecs
+from grottdata import pr, procdata
 
 
 class Sniff:
     def __init__(self, conf):
         self.conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
         if conf.verbose:
-            print("")
-            print("\nGrott sniff mode started\n")
+            pr("")
+            pr("\nGrott sniff mode started\n")
 
     def main(self, conf):
         while True:
@@ -26,17 +17,17 @@ class Sniff:
             self.eth = Ethernet(self.raw_data)
             if conf.trace:
                 # fmt: off
-                print("\n" + "\t - " + "Ethernet Frame:")
-                print(f"\t - Destination: {self.eth.dest_mac}, Source: {self.eth.src_mac}, Protocol: {self.eth.proto}")
+                pr("\n- Ethernet Frame:\n" + 
+                f"\t - Destination: {self.eth.dest_mac}, Source: {self.eth.src_mac}, Protocol: {self.eth.proto}")
                 # fmt: on
             # IPv4
             if self.eth.proto == 8:
                 self.ipv4 = IPv4(self.eth.data)
                 if conf.trace:
                     # fmt: off
-                    print("\t - " + "IPv4 Packet protocol 8 :")
-                    print("\t\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},")
-                    print("\t\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
+                    pr("- IPv4 Packet protocol 8:"
+                    +"\n\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},"
+                    +"\n\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
                     # fmt: on
 
                 # TCP
@@ -45,9 +36,9 @@ class Sniff:
                     self.tcp = TCP(self.ipv4.data)
                     if conf.trace:
                         # fmt: off
-                        print("\t - " + "TCP Segment protocol 6 found")
-                        print("\t\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
-                        print("\t\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                        pr("- TCP Segment protocol 6 found")
+                        pr("\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
+                        pr("\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
                         # fmt: on
 
                     if (
@@ -56,13 +47,13 @@ class Sniff:
                     ):
                         if conf.verbose:
                             # fmt: off
-                            print("\t - " + "TCP Segment Growatt:")
-                            print("\t\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
-                            print(f"\t\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
-                            print(f"\t\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}")
-                            print("\t\t - " + "Flags:")
-                            print(f"\t\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}")
-                            print(f"\t\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
+                            pr("- TCP Segment Growatt:")
+                            pr("\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}")
+                            pr(f"\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                            pr(f"\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}")
+                            pr("\t - Flags:")
+                            pr(f"\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}")
+                            pr(f"\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
                             # fmt: on
 
                         # fmt: off
@@ -70,18 +61,18 @@ class Sniff:
                             procdata(conf, self.tcp.data)
                         else:
                             if conf.verbose:
-                                print("\t - Data less then minimum record length, data not processed")
+                                pr("- Data less then minimum record length, data not processed")
                         # fmt: on
 
                 # Other IPv4 Not used
                 else:
                     if conf.trace:
-                        print("\t - " + "Other IPv4 Data")
+                        pr("- Other IPv4 Data")
                         # print(format_multi_line(DATA_TAB_2, self.ipv4.data))
 
             else:
                 if conf.trace:
-                    print("\t - " + "No IPV4 Ethernet Data")
+                    pr("- No IPV4 Ethernet Data")
                     # print(TAB_1 + format_multi_line(DATA_TAB_1, self.eth.data))
 
 

@@ -12,7 +12,7 @@ import os
 import sys
 from os import walk
 
-from grottdata import print, str2bool
+from grottdata import pr, str2bool
 
 
 class Conf:
@@ -100,7 +100,7 @@ class Conf:
         # self.extvar = {"ip": "localhost", "port":8000}
         self.extvar = {"none": "none"}
 
-        print("Grott Growatt logging monitor : " + self.verrel)
+        pr("Grott Growatt logging monitor : " + self.verrel)
 
         # Set parm's
         # prio: 1.Command line parms, 2.env. variables, 3.config file 4.program default
@@ -142,16 +142,14 @@ class Conf:
                 self.ifip = "0.0.0.0"
             if not self.influx2:
                 if self.verbose:
-                    print("")
+                    pr("")
                 if self.verbose:
-                    print("\t - " + "Grott InfluxDB V1 initiating started")
+                    pr("- Grott InfluxDB V1 initiating started")
                 try:
                     from influxdb import InfluxDBClient
                 except ImportError:
                     if self.verbose:
-                        print(
-                            "\t - " + "Grott Influxdb Library not installed in Python"
-                        )
+                        pr("- Grott Influxdb Library not installed in Python")
                     self.influx = False  # no influx processing any more till restart (and errors repared)
                     raise SystemExit("Grott Influxdb initialisation error")
 
@@ -169,25 +167,23 @@ class Conf:
                     ]
                 except Exception as e:
                     if self.verbose:
-                        print("\t - " + "Grott can not contact InfluxDB")
+                        pr("- Grott can not contact InfluxDB")
                     self.influx = False  # no influx processing any more till restart (and errors repared)
-                    print("\t -", e)
+                    pr("-", e)
                     raise SystemExit("Grott Influxdb initialisation error")
 
                 # print(databases)
                 if self.ifdbname not in databases:
                     if self.verbose:
-                        print(
-                            "\t - "
-                            + "Grott grottdb not yet defined in influx, will  be created"
+                        pr(
+                            "- Grott grottdb not yet defined in influx, will  be created"
                         )
                     try:
                         self.influxclient.create_database(self.ifdbname)
                     except Exception:
                         if self.verbose:
-                            print(
-                                "\t - "
-                                + "Grott Unable to create or connect to influx database:",
+                            pr(
+                                "- Grott Unable to create or connect to influx database:",
                                 self.ifdbname,
                                 " check user authorisation",
                             )
@@ -198,18 +194,15 @@ class Conf:
             else:
 
                 if self.verbose:
-                    print("")
+                    pr("")
                 if self.verbose:
-                    print("\t - " + "Grott InfluxDB V2 initiating started")
+                    pr("- Grott InfluxDB V2 initiating started")
                 try:
                     from influxdb_client import InfluxDBClient
                     from influxdb_client.client.write_api import SYNCHRONOUS
                 except ImportError:
                     if self.verbose:
-                        print(
-                            "\t - "
-                            + "Grott Influxdb-client Library not installed in Python"
-                        )
+                        pr("- Grott Influxdb-client Library not installed")
                     self.influx = False  # no influx processing any more till restart (and errors fixed)
                     raise SystemExit("Grott Influxdb initialisation error")
 
@@ -230,9 +223,7 @@ class Conf:
                     organizations = self.iforganization_api.find_organizations()
                     # print(organizations)
                     if buckets is None:
-                        print(
-                            "\t - " + "influxDB bucket ", self.ifbucket, "not defined"
-                        )
+                        pr("- influxDB bucket ", self.ifbucket, "not defined")
                         self.influx = False
                         raise SystemExit("Grott Influxdb initialisation error")
                     orgfound = False
@@ -241,8 +232,8 @@ class Conf:
                             orgfound = True
                             break
                     if not orgfound:
-                        print(
-                            "\t - " + "influxDB organization",
+                        pr(
+                            "- influxDB organization",
                             self.iforg,
                             "not defined or no authorisation to check",
                         )
@@ -251,82 +242,82 @@ class Conf:
 
                 except Exception as e:
                     if self.verbose:
-                        print("\t - " + "Grott error: can not contact InfluxDB")
-                    print(e)
+                        pr("- Grott error: can not contact InfluxDB")
+                    pr(e)
                     self.influx = False  # no influx processing any more till restart (and errors repared)
                     raise SystemExit("Grott Influxdb initialisation error")
 
     def print(self):
-        print("\nGrott settings:\n")
-        print("_Generic:")
-        print("\tversion:     \t", self.verrel)
-        print("\tverbose:     \t", self.verbose)
-        print("\ttrace:       \t", self.trace)
-        print("\tconfig file: \t", self.cfgfile)
-        print("\tminrecl:     \t", self.minrecl)
-        print("\tdecrypt:     \t", self.decrypt)
-        print("\tcompat:      \t", self.compat)
-        print("\tinvtype:     \t", self.invtype)
-        print("\tinclude_all: \t", self.includeall)
-        print("\tblockcmd:    \t", self.blockcmd)
-        print("\tnoipf:       \t", self.noipf)
-        print("\ttime:        \t", self.gtime)
-        print("\tsendbuf:     \t", self.sendbuf)
-        print("\ttimezone:    \t", self.tmzone)
-        print("\tvalueoffset: \t", self.valueoffset)
-        print("\toffset:      \t", self.offset)
-        print("\tinverterid:  \t", self.inverterid)
-        print("\tmode:        \t", self.mode)
-        print("\tgrottip      \t", self.grottip)
-        print("\tgrottport    \t", self.grottport)
+        pr("\nGrott settings:\n")
+        pr("_Generic:")
+        pr("\tversion:     \t", self.verrel)
+        pr("\tverbose:     \t", self.verbose)
+        pr("\ttrace:       \t", self.trace)
+        pr("\tconfig file: \t", self.cfgfile)
+        pr("\tminrecl:     \t", self.minrecl)
+        pr("\tdecrypt:     \t", self.decrypt)
+        pr("\tcompat:      \t", self.compat)
+        pr("\tinvtype:     \t", self.invtype)
+        pr("\tinclude_all: \t", self.includeall)
+        pr("\tblockcmd:    \t", self.blockcmd)
+        pr("\tnoipf:       \t", self.noipf)
+        pr("\ttime:        \t", self.gtime)
+        pr("\tsendbuf:     \t", self.sendbuf)
+        pr("\ttimezone:    \t", self.tmzone)
+        pr("\tvalueoffset: \t", self.valueoffset)
+        pr("\toffset:      \t", self.offset)
+        pr("\tinverterid:  \t", self.inverterid)
+        pr("\tmode:        \t", self.mode)
+        pr("\tgrottip      \t", self.grottip)
+        pr("\tgrottport    \t", self.grottport)
         # print("\tSN           \t",self.SN)
-        print("_MQTT:")
-        print("\tnomqtt       \t", self.nomqtt)
-        print("\tmqttip:      \t", self.mqttip)
-        print("\tmqttport:    \t", self.mqttport)
-        print("\tmqtttopic:   \t", self.mqtttopic)
-        print("\tmqttmtopic:  \t", self.mqttmtopic)
-        print("\tmqttmtopicname:\t", self.mqttmtopicname)
-        print("\tmqtttretain: \t", self.mqttretain)
-        print("\tmqtttauth:   \t", self.mqttauth)
-        print("\tmqttuser:    \t", self.mqttuser)
-        print("\tmqttpsw:     \t", "**secret**")  # scramble output if tested!
+        pr("_MQTT:")
+        pr("\tnomqtt       \t", self.nomqtt)
+        pr("\tmqttip:      \t", self.mqttip)
+        pr("\tmqttport:    \t", self.mqttport)
+        pr("\tmqtttopic:   \t", self.mqtttopic)
+        pr("\tmqttmtopic:  \t", self.mqttmtopic)
+        pr("\tmqttmtopicname:\t", self.mqttmtopicname)
+        pr("\tmqtttretain: \t", self.mqttretain)
+        pr("\tmqtttauth:   \t", self.mqttauth)
+        pr("\tmqttuser:    \t", self.mqttuser)
+        pr("\tmqttpsw:     \t", "**secret**")  # scramble output if tested!
         # print("\tmqttpsw:     \t",self.mqttpsw)                       #scramble output if tested!
-        print("_Growatt server:")
-        print("\tgrowattip:   \t", self.growattip)
-        print("\tgrowattport: \t", self.growattport)
-        print("_PVOutput:")
-        print("\tpvoutput:    \t", self.pvoutput)
-        print("\tpvdisv1:     \t", self.pvdisv1)
-        print("\tpvtemp:      \t", self.pvtemp)
-        print("\tpvurl:       \t", self.pvurl)
-        print("\tpvapikey:    \t", self.pvapikey)
-        print("\tpvinverters: \t", self.pvinverters)
+        pr("_Growatt server:")
+        pr("\tgrowattip:   \t", self.growattip)
+        pr("\tgrowattport: \t", self.growattport)
+        pr("_PVOutput:")
+        pr("\tpvoutput:    \t", self.pvoutput)
+        pr("\tpvdisv1:     \t", self.pvdisv1)
+        pr("\tpvtemp:      \t", self.pvtemp)
+        pr("\tpvurl:       \t", self.pvurl)
+        pr("\tpvapikey:    \t", self.pvapikey)
+        pr("\tpvinverters: \t", self.pvinverters)
         if self.pvinverters == 1:
-            print("\tpvsystemid:  \t", self.pvsystemid[1])
+            pr("\tpvsystemid:  \t", self.pvsystemid[1])
         else:
-            print("\tpvsystemid:  \t", self.pvsystemid)
-            print("\tpvinvertid:  \t", self.pvinverterid)
-        print("_Influxdb:")
-        print("\tinflux:      \t", self.influx)
-        print("\tinflux2:     \t", self.influx2)
-        print("\tdatabase:    \t", self.ifdbname)
-        print("\tip:          \t", self.ifip)
-        print("\tport:        \t", self.ifport)
-        print("\tuser:        \t", self.ifuser)
-        print("\tpassword:    \t", "**secret**")
+            pr("\tpvsystemid:  \t", self.pvsystemid)
+            pr("\tpvinvertid:  \t", self.pvinverterid)
+        pr("_Influxdb:")
+        pr("\tinflux:      \t", self.influx)
+        pr("\tinflux2:     \t", self.influx2)
+        pr("\tdatabase:    \t", self.ifdbname)
+        pr("\tip:          \t", self.ifip)
+        pr("\tport:        \t", self.ifport)
+        pr("\tuser:        \t", self.ifuser)
+        pr("\tpassword:    \t", "**secret**")
         # print("\tpassword:    \t",self.ifpsw)
-        print("\torganization:\t", self.iforg)
-        print("\tbucket:      \t", self.ifbucket)
-        print("\ttoken:       \t", "**secret**")
+        pr("\torganization:\t", self.iforg)
+        pr("\tbucket:      \t", self.ifbucket)
+        pr("\ttoken:       \t", "**secret**")
         # print("\ttoken:       \t",self.iftoken)
 
-        print("_Extension:")
-        print("\textension:   \t", self.extension)
-        print("\textname:     \t", self.extname)
-        print("\textvar:      \t", self.extvar)
+        pr("_Extension:")
+        pr("\textension:   \t", self.extension)
+        pr("\textname:     \t", self.extname)
+        pr("\textvar:      \t", self.extvar)
 
-        print()
+        pr()
 
     def parserinit(self):
         # Process commandline parameters init (read args, process c,v,o settings)
@@ -405,18 +396,18 @@ class Conf:
             self.ainverterid = args.i
 
         if self.verbose:
-            print("\nGrott Command line parameters processed:")
-            print("\tverbose:     \t", self.verbose)
-            print("\tconfig file: \t", self.cfgfile)
-            print("\toutput file: \t", sys.stdout)
-            print("\tnomqtt:      \t", self.anomqtt)
-            print("\tinverterid:  \t", self.inverterid)
-            print("\tpvoutput:    \t", self.apvoutput)
-            print("\tblockcmd:    \t", self.ablockcmd)
-            print("\tnoipf:       \t", self.noipf)
+            pr("\nGrott Command line parameters processed:")
+            pr("\tverbose:     \t", self.verbose)
+            pr("\tconfig file: \t", self.cfgfile)
+            pr("\toutput file: \t", sys.stdout)
+            pr("\tnomqtt:      \t", self.anomqtt)
+            pr("\tinverterid:  \t", self.inverterid)
+            pr("\tpvoutput:    \t", self.apvoutput)
+            pr("\tblockcmd:    \t", self.ablockcmd)
+            pr("\tnoipf:       \t", self.noipf)
 
     def parserset(self):
-        print("\nGrott override settings if set in commandline")
+        pr("\nGrott override settings if set in commandline")
         if hasattr(self, "amode"):
             self.mode = self.amode
         if hasattr(self, "ablockcmd") and self.ablockcmd:
@@ -455,7 +446,7 @@ class Conf:
         self.extension = str2bool(self.extension)
 
     def procconf(self):
-        print("\nGrott process configuration file")
+        pr("\nGrott process configuration file")
         config = configparser.ConfigParser()
         config.read(self.cfgfile)
         if config.has_option("Generic", "minrecl"):
@@ -593,11 +584,11 @@ class Conf:
         envval = os.getenv(envvar)
 
         if self.verbose:
-            print(f"\n\tPulled '{envvar}={envval}' from the environment")
+            pr(f"\n\tPulled '{envvar}={envval}' from the environment")
         return envval
 
     def procenv(self):
-        print("\nGrott process environmental variables")
+        pr("\nGrott process environmental variables")
         if os.getenv("gmode") in ("sniff", "proxy"):
             self.mode = self.getenv("gmode")
         if os.getenv("gverbose") is not None:
@@ -631,7 +622,7 @@ class Conf:
                 self.grottip = self.getenv("ggrottip")
             except ValueError:
                 if self.verbose:
-                    print("\nGrott IP address env invalid")
+                    pr("\nGrott IP address env invalid")
         if os.getenv("ggrottport") is not None:
             if 0 <= int(os.getenv("ggrottport")) <= 65535:
                 self.grottport = self.getenv("ggrottport")
@@ -644,13 +635,13 @@ class Conf:
                 self.growattip = self.getenv("ggrowattip")
             except ValueError:
                 if self.verbose:
-                    print("\nGrott Growatt server IP address env invalid")
+                    pr("\nGrott Growatt server IP address env invalid")
         if os.getenv("ggrowattport") is not None:
             if 0 <= int(os.getenv("ggrowattport")) <= 65535:
                 self.growattport = int(self.getenv("ggrowattport"))
             else:
                 if self.verbose:
-                    print("\nGrott Growatt server Port address env invalid")
+                    pr("\nGrott Growatt server Port address env invalid")
         # handle mqtt environmentals
         if os.getenv("gnomqtt") is not None:
             self.nomqtt = self.getenv("gnomqtt")
@@ -660,13 +651,13 @@ class Conf:
                 self.mqttip = self.getenv("gmqttip")
             except ValueError:
                 if self.verbose:
-                    print("\nGrott MQTT server IP address env invalid")
+                    pr("\nGrott MQTT server IP address env invalid")
         if os.getenv("gmqttport") is not None:
             if 0 <= int(os.getenv("gmqttport")) <= 65535:
                 self.mqttport = int(self.getenv("gmqttport"))
             else:
                 if self.verbose:
-                    print("\nGrott MQTT server Port address env invalid")
+                    pr("\nGrott MQTT server Port address env invalid")
 
         if os.getenv("gmqtttopic") is not None:
             self.mqtttopic = self.getenv("gmqtttopic")
@@ -714,13 +705,13 @@ class Conf:
                 self.ifip = self.getenv("gifip")
             except ValueError:
                 if self.verbose:
-                    print("\nGrott InfluxDB server IP address env invalid")
+                    pr("\nGrott InfluxDB server IP address env invalid")
         if os.getenv("gifport") is not None:
             if 0 <= int(os.getenv("gifport")) <= 65535:
                 self.ifport = int(self.getenv("gifport"))
             else:
                 if self.verbose:
-                    print("\nGrott InfluxDB server Port address env invalid")
+                    pr("\nGrott InfluxDB server Port address env invalid")
         if os.getenv("gifuser") is not None:
             self.ifuser = self.getenv("gifuser")
         if os.getenv("gifpassword") is not None:
@@ -773,12 +764,12 @@ class Conf:
             with open("recwl.txt", "r", encoding="utf-8") as f:
                 self.recwl = f.read().splitlines()
             if self.verbose:
-                print("\nGrott external record whitelist: 'recwl.txt' read")
+                pr("\nGrott external record whitelist: 'recwl.txt' read")
         except FileNotFoundError:
             if self.verbose:
-                print("\nGrott external record whitelist 'recwl.txt' not found")
+                pr("\nGrott external record whitelist 'recwl.txt' not found")
         if self.verbose:
-            print("\nGrott records whitelisted : ", self.recwl)
+            pr("\nGrott records whitelisted : ", self.recwl)
 
     def set_reclayouts(self):
         # define record layout to be used based on byte 4,6,7 of the header T+byte4+byte6+byte7
@@ -1522,22 +1513,22 @@ class Conf:
         self.recorddict.update(self.recorddict11)
         self.recorddict.update(self.recorddict12)  # T05NNNNXSPH
         f = []
-        print("\nGrott process json layout files")
+        pr("\nGrott process json layout files")
         for _, _, filenames in walk("."):
             f.extend(filenames)
             break
         for x in f:
             if (x[0] == "t" or x[0] == "T") and x.find(".json") > 0:
-                print(x)
+                pr(x)
                 with open(x, "r", encoding="utf-8") as json_file:
                     dicttemp = json.load(json_file)
                     # print(dicttemp)
                     self.recorddict.update(dicttemp)
 
         if self.verbose:
-            print("\nGrott layout records loaded")
+            pr("\nGrott layout records loaded")
         for key, value in self.recorddict.items():
             if self.verbose:
-                print(key, " : ")
+                pr(key, " : ")
             if self.verbose:
-                print(value)
+                pr(value)

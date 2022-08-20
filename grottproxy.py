@@ -10,7 +10,7 @@ import time
 
 import libscrc
 
-from grottdata import decrypt, format_multi_line, print, procdata
+from grottdata import decrypt, format_multi_line, pr, procdata
 
 ## to resolve errno 32: broken pipe issue (only linux)
 if sys.platform != "win32":
@@ -64,7 +64,7 @@ class Forward:
             self.forward.connect((host, port))
             return self.forward
         except Exception as e:
-            print(f"\t - Grott - grottproxy forward error: {e}")
+            pr(f"- Grott - grottproxy forward error: {e}")
             return False
 
 
@@ -73,7 +73,7 @@ class Proxy:
     channel = {}
 
     def __init__(self, conf):
-        print("\nGrott proxy mode started")
+        pr("\nGrott proxy mode started")
 
         ## to resolve errno 32: broken pipe issue (Linux only)
         if sys.platform != "win32":
@@ -88,8 +88,8 @@ class Proxy:
         # socket.gethostbyname(socket.gethostname())
         try:
             hostname = socket.gethostname()
-            print("Hostname:", hostname)
-            print(
+            pr("Hostname:", hostname)
+            pr(
                 "IP : ",
                 socket.gethostbyname(hostname),
                 ", port : ",
@@ -97,7 +97,7 @@ class Proxy:
                 "\n",
             )
         except Exception:
-            print("IP and port information not available")
+            pr("IP and port information not available")
 
         self.server.listen(200)
         self.forward_to = (conf.growattip, conf.growattport)
@@ -115,7 +115,7 @@ class Proxy:
                     self.data, self.addr = self.s.recvfrom(buffer_size)
                 except Exception:
                     if conf.verbose:
-                        print("\t - Grott connection error")
+                        pr("- Grott connection error")
                     self.on_close(conf)
                     break
                 if len(self.data) == 0:
@@ -130,16 +130,16 @@ class Proxy:
         clientsock, clientaddr = self.server.accept()
         if forward:
             if conf.verbose:
-                print("\t -", clientaddr, "has connected")
+                pr("-", clientaddr, "has connected")
             self.input_list.append(clientsock)
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
         else:
             if conf.verbose:
-                print(
-                    "\t - Can't establish connection with remote server.\n"
-                    "\t - Closing connection with client side",
+                pr(
+                    "- Can't establish connection with remote server.\n"
+                    "- Closing connection with client side",
                     clientaddr,
                 )
             clientsock.close()
@@ -148,9 +148,9 @@ class Proxy:
         if conf.verbose:
             # try / except to resolve errno 107: Transport endpoint is not connected
             try:
-                print("\t -", self.s.getpeername(), "has disconnected")
+                pr("-", self.s.getpeername(), "has disconnected")
             except Exception:
-                print("\t -", "peer has disconnected")
+                pr("-", "peer has disconnected")
 
         # remove objects from input_list
         self.input_list.remove(self.s)
@@ -166,15 +166,13 @@ class Proxy:
 
     def on_recv(self, conf):
         data = self.data
-        print("\n\t - Growatt packet received:" "\n\t\t ", self.channel[self.s])
+        pr("\n- Growatt packet received:\n\t", self.channel[self.s])
 
         # test if record is not corrupted
         vdata = "".join("{:02x}".format(n) for n in data)
         validatecc = validate_record(vdata)
         if validatecc != 0:
-            print(
-                f"\t - Grott - grottproxy - Invalid data record received, processing stopped for this record"
-            )
+            pr("- Grott - grottproxy - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)
             return
@@ -183,7 +181,7 @@ class Proxy:
         header = "".join(f"{n:02x}" for n in data[0:8])
         if conf.blockcmd:
             # standard everything is blocked!
-            print("\t - Growatt command block checking started")
+            pr("- Growatt command block checking started")
             blockflag = True
             # partly block configure Shine commands
             if header[14:16] == "18":
@@ -202,7 +200,7 @@ class Proxy:
                     if header[14:16] == "18":
                         # do not block if configure time command of configure IP (if noipf flag set)
                         if conf.verbose:
-                            print("\t - Grott: Shine Configure command detected")
+                            pr("- Grott: Shine Configure command detected")
                         if confcmd == "001f" or (confcmd == "0011" and conf.noipf):
                             blockflag = False
                             if confcmd == "001f":
@@ -210,14 +208,14 @@ class Proxy:
                             if confcmd == "0011":
                                 confcmd = "Change IP"
                             if conf.verbose:
-                                print(
-                                    "\t - Grott: Configure command not blocked : ",
+                                pr(
+                                    "- Grott: Configure command not blocked : ",
                                     confcmd,
                                 )
                     else:
                         # All configure inverter commands will be blocked
                         if conf.verbose:
-                            print("\t - Grott: Inverter Configure command detected")
+                            pr("- Grott: Inverter Configure command detected")
 
             # allow records:
             if header[12:16] in conf.recwl:
@@ -228,10 +226,10 @@ class Proxy:
                     blockeddata = decrypt(data)
                 else:
                     blockeddata = data
-                print(
-                    f"\t - Grott: Record blocked: {header[12:16]}"
+                pr(
+                    f"- Grott: Record blocked: {header[12:16]}"
                     + "\n"
-                    + format_multi_line("\t\t ", blockeddata),
+                    + format_multi_line("\t", blockeddata),
                 )
                 return
 
@@ -242,6 +240,4 @@ class Proxy:
             procdata(conf, data)
         else:
             if conf.verbose:
-                print(
-                    "\t - " + "Data less then minimum record length, data not processed"
-                )
+                pr("- Data less then minimum record length, data not processed")
