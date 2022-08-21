@@ -8,7 +8,6 @@ import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
-from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -795,9 +794,6 @@ class GrottServerHandler(socketserver.StreamRequestHandler):
                     break
                 self.wfile.write(data)
                 self.wfile.flush()
-                # According to Growatt Internal Modbus RS485 RTU Protocol,
-                # wait for minimum 850ms to send a new CMD after last CMD.
-                sleep(0.850)
         except Exception:
             pass
         finally:
