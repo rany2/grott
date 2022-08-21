@@ -66,6 +66,103 @@ def str2bool(defstr):
     return ()
 
 
+def pvoutput_send(*, conf, header, definedkey, jsondate):
+    pvidfound = False
+    if conf.pvinverters == 1:
+        pvssid = conf.pvsystemid[1]
+        pvidfound = True
+    else:
+        for pvnum, pvid in conf.pvinverterid.items():
+            if pvid == definedkey["pvserial"]:
+                pvssid = conf.pvsystemid[pvnum]
+                pvidfound = True
+
+    if not pvidfound:
+        if conf.verbose:
+            pr(
+                "- pvsystemid not found for inverter : ",
+                definedkey["pvserial"],
+            )
+        return
+    if conf.verbose:
+        pr(
+            "- Grott send data to PVOutput systemid: ",
+            pvssid,
+            "for inverter: ",
+            definedkey["pvserial"],
+        )
+    pvheader = {
+        "X-Pvoutput-Apikey": conf.pvapikey,
+        "X-Pvoutput-SystemId": pvssid,
+    }
+
+    pvodate = jsondate[:4] + jsondate[5:7] + jsondate[8:10]
+    # debug: pvodate = jsondate[:4] +jsondate[5:7] + "16"
+    pvotime = jsondate[11:16]
+    # debug: pvotime = "09:05"
+    # if record is a smart monitor record sent smart monitor data to PVOutput
+    if header[14:16] != "20":
+        pvdata = {
+            "d": pvodate,
+            "t": pvotime,
+            # 2.7.1    "v1"    : definedkey["pvenergytoday"]*100,
+            "v2": definedkey["pvpowerout"] / 10,
+            "v6": definedkey["pvgridvoltage"] / 10,
+        }
+        if not conf.pvdisv1:
+            pvdata["v1"] = definedkey["pvenergytoday"] * 100
+        else:
+            if conf.verbose:
+                pr("- Grott PVOutput send V1 disabled")
+
+        if conf.pvtemp:
+            pvdata["v5"] = definedkey["pvtemperature"] / 10
+
+        if conf.verbose:
+            pr("- ", pvheader)
+            pr("- ", pvdata)
+        reqret = requests.post(
+            conf.pvurl, data=pvdata, headers=pvheader, timeout=conf.pvtimeout
+        )
+        if conf.verbose:
+            pr("- Grott PVOutput response:")
+            pr("\t - ", reqret.text)
+    else:
+        # send smat monitor data c1 = 3 indiates v3 is lifetime energy
+        # (day will be calculated), n=1 indicates is net data (import / export)
+        # value seprated because it is not allowed to sent combination at once
+        pvdata1 = {
+            "d": pvodate,
+            "t": pvotime,
+            "v3": definedkey["pos_act_energy"] * 100,
+            "c1": 3,
+            "v6": definedkey["voltage_l1"] / 10,
+        }
+
+        pvdata2 = {
+            "d": pvodate,
+            "t": pvotime,
+            "v4": definedkey["pos_rev_act_power"] / 10,
+            "v6": definedkey["voltage_l1"] / 10,
+            "n": 1,
+        }
+        # "v4"    : definedkey["pos_act_power"]/10,
+        if conf.verbose:
+            pr("\t - ", pvheader)
+            pr("\t - ", pvdata1)
+            pr("\t - ", pvdata2)
+        reqret = requests.post(
+            conf.pvurl, data=pvdata1, headers=pvheader, timeout=conf.pvtimeout
+        )
+        if conf.verbose:
+            pr("- Grott PVOutput response SM1:\n" + "\t - ", reqret.text)
+        reqret = requests.post(
+            conf.pvurl, data=pvdata2, headers=pvheader, timeout=conf.pvtimeout
+        )
+        if conf.verbose:
+            pr("- Grott PVOutput response SM2:\n" + "\t - ", reqret.text)
+
+
 def procdata(conf, data):
     if conf.verbose:
         pr("- Growatt original Data:\n" + format_multi_line("\t ", data))
@@ -482,94 +579,12 @@ def procdata(conf, data):
 
         # process pvoutput if enabled
         if conf.pvoutput:
-            pvidfound = False
-            if conf.pvinverters == 1:
-                pvssid = conf.pvsystemid[1]
-                pvidfound = True
-            else:
-                for pvnum, pvid in conf.pvinverterid.items():
-                    if pvid == definedkey["pvserial"]:
-                        pvssid = conf.pvsystemid[pvnum]
-                        pvidfound = True
-
-            if not pvidfound:
-                if conf.verbose:
-                    pr(
-                        "- pvsystemid not found for inverter : ",
-                        definedkey["pvserial"],
-                    )
-                return
-            if conf.verbose:
-                pr(
-                    "- Grott send data to PVOutput systemid: ",
-                    pvssid,
-                    "for inverter: ",
-                    definedkey["pvserial"],
+            try:
+                pvoutput_send(
+                    conf=conf, header=header, definedkey=definedkey, jsondate=jsondate
                 )
-            pvheader = {
-                "X-Pvoutput-Apikey": conf.pvapikey,
-                "X-Pvoutput-SystemId": pvssid,
-            }
-
-            pvodate = jsondate[:4] + jsondate[5:7] + jsondate[8:10]
-            # debug: pvodate = jsondate[:4] +jsondate[5:7] + "16"
-            pvotime = jsondate[11:16]
-            # debug: pvotime = "09:05"
-            # if record is a smart monitor record sent smart monitor data to PVOutput
-            if header[14:16] != "20":
-                pvdata = {
-                    "d": pvodate,
-                    "t": pvotime,
-                    # 2.7.1    "v1"    : definedkey["pvenergytoday"]*100,
-                    "v2": definedkey["pvpowerout"] / 10,
-                    "v6": definedkey["pvgridvoltage"] / 10,
-                }
-                if not conf.pvdisv1:
-                    pvdata["v1"] = definedkey["pvenergytoday"] * 100
-                else:
-                    if conf.verbose:
-                        pr("- Grott PVOutput send V1 disabled")
-
-                if conf.pvtemp:
-                    pvdata["v5"] = definedkey["pvtemperature"] / 10
-
-                if conf.verbose:
-                    pr("- ", pvheader)
-                    pr("- ", pvdata)
-                reqret = requests.post(conf.pvurl, data=pvdata, headers=pvheader)
-                if conf.verbose:
-                    pr("- Grott PVOutput response:")
-                    pr("\t - ", reqret.text)
-            else:
-                # send smat monitor data c1 = 3 indiates v3 is lifetime energy
-                # (day will be calculated), n=1 indicates is net data (import / export)
-                # value seprated because it is not allowed to sent combination at once
-                pvdata1 = {
-                    "d": pvodate,
-                    "t": pvotime,
-                    "v3": definedkey["pos_act_energy"] * 100,
-                    "c1": 3,
-                    "v6": definedkey["voltage_l1"] / 10,
-                }
-
-                pvdata2 = {
-                    "d": pvodate,
-                    "t": pvotime,
-                    "v4": definedkey["pos_rev_act_power"] / 10,
-                    "v6": definedkey["voltage_l1"] / 10,
-                    "n": 1,
-                }
-                # "v4"    : definedkey["pos_act_power"]/10,
-                if conf.verbose:
-                    pr("\t - ", pvheader)
-                    pr("\t - ", pvdata1)
-                    pr("\t - ", pvdata2)
-                reqret = requests.post(conf.pvurl, data=pvdata1, headers=pvheader)
-                if conf.verbose:
-                    pr("- Grott PVOutput response SM1:\n" + "\t - ", reqret.text)
-                reqret = requests.post(conf.pvurl, data=pvdata2, headers=pvheader)
-                if conf.verbose:
-                    pr("- Grott PVOutput response SM2:\n" + "\t - ", reqret.text)
+            except Exception as e:
+                pr("- PVOutput send failed:", str(e))
         else:
             if conf.verbose:
                 pr("- Grott Send data to PVOutput disabled ")

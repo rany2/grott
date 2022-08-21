@@ -78,6 +78,7 @@ class Conf:
         self.pvinverterid[1] = "inverter1"
         self.pvdisv1 = False
         self.pvtemp = False
+        self.pvtimeout = 2.5
 
         # influxdb default
         self.influx = False
@@ -198,6 +199,7 @@ class Conf:
         else:
             pr("\tpvsystemid:  \t", self.pvsystemid)
             pr("\tpvinvertid:  \t", self.pvinverterid)
+        pr("\tpvtimeout:   \t", self.pvtimeout)
 
         pr("_Influxdb:")
         pr("\tinflux:      \t", self.influx)
@@ -393,6 +395,7 @@ class Conf:
             self.forwardretry = config.getint("Server", "forwardretry")
         if config.has_option("Server", "forwardtimeout"):
             self.forwardtimeout = config.getfloat("Server", "forwardtimeout")
+
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
         if config.has_option("MQTT", "ip"):
@@ -413,6 +416,7 @@ class Conf:
             self.mqttuser = config.get("MQTT", "user")
         if config.has_option("MQTT", "password"):
             self.mqttpsw = config.get("MQTT", "password")
+
         if config.has_option("PVOutput", "pvoutput"):
             self.pvoutput = config.get("PVOutput", "pvoutput")
         if config.has_option("PVOutput", "pvtemp"):
@@ -433,6 +437,9 @@ class Conf:
         if self.pvinverters == 1:
             if config.has_option("PVOutput", "systemid"):
                 self.pvsystemid[1] = config.get("PVOutput", "systemid")
+        if config.has_option("PVOutput", "pvtimeout"):
+            self.pvtimeout = config.getfloat("PVOutput", "pvtimeout")
+
         # INFLUX
         if config.has_option("influx", "influx"):
             self.influx = config.get("influx", "influx")
@@ -444,6 +451,7 @@ class Conf:
             self.ifbucket = config.get("influx", "bucket")
         if config.has_option("influx", "token"):
             self.iftoken = config.get("influx", "token")
+
         # extension
         if config.has_option("extension", "extension"):
             self.extension = config.get("extension", "extension")
