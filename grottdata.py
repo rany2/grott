@@ -1,6 +1,8 @@
-# grottdata.py processing data  functions
-# Version 2.7.5
-# Updated: 2022-07-30
+"""
+grottdata.py processing data  functions
+Version 2.7.5
+Updated: 2022-07-30
+"""
 
 import codecs
 import importlib
@@ -24,8 +26,8 @@ def pr(*args, **kwargs):
     return print(*args, **kwargs)
 
 
-# Formats multi-line data
 def format_multi_line(prefix, string, size=80):
+    """Formats multi-line data"""
     size -= len(prefix)
     if isinstance(string, bytes):
         string = "".join(rf"\x{byte:02x}" for byte in string)
@@ -34,8 +36,8 @@ def format_multi_line(prefix, string, size=80):
     return "\n".join([prefix + line for line in textwrap.wrap(string, size)])
 
 
-# decrypt data.
 def decrypt(decdata):
+    """decrypt data"""
 
     ndecdata = len(decdata)
 

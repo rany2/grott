@@ -1,7 +1,8 @@
-#
-# grottconf  process command parameter and settings file
-# Updated: 2022-05-17
-# Version 2.7.3
+"""
+grottconf  process command parameter and settings file
+Updated: 2022-05-17
+Version 2.7.3
+"""
 
 import argparse
 import configparser
@@ -217,7 +218,9 @@ class Conf:
         pr()
 
     def parserinit(self):
-        # Process commandline parameters init (read args, process c,v,o settings)
+        """
+        Process commandline parameters init (read args, process c,v,o settings)
+        """
         parser = argparse.ArgumentParser(prog="grott")
         parser.add_argument("-v", "--verbose", help="set verbose", action="store_true")
         parser.add_argument("--version", action="version", version=self.verrel)

@@ -1,12 +1,13 @@
-# Grott Growatt monitor :  Proxy
-#
-# Updated: 2022-08-07
-# Version 2.7.5
+"""
+Grott Growatt monitor :  Proxy
+Updated: 2022-08-07
+Version 2.7.5
+"""
 
 import queue
 import socket
-import socketserver
 import threading
+from socketserver import StreamRequestHandler, ThreadingTCPServer
 
 import libscrc
 
@@ -68,7 +69,7 @@ class Forward:
             return False
 
 
-class GrottProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class GrottProxy(ThreadingTCPServer):
     """This wrapper will create a Growatt server where the handler has access to the config"""
 
     def __init__(self, conf):
@@ -80,11 +81,12 @@ class GrottProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
             return GrottProxyHandler(conf, *args)
 
         self.allow_reuse_address = True
+        self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
         pr(f"- Grottproxy - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
-class GrottProxyHandler(socketserver.StreamRequestHandler):
+class GrottProxyHandler(StreamRequestHandler):
     def __init__(self, conf, *args):
         self.conf = conf
         self.verbose = conf.verbose

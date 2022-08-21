@@ -1,13 +1,19 @@
+"""
+grottserver.py emulates the server.growatt.com website and was initial developed
+for debugging and testing grott.
+Updated: 2022-08-07
+"""
+
 import codecs
 import hashlib
-import http.server
 import json
 import queue
 import socket
-import socketserver
 import threading
 from collections import defaultdict
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import StreamRequestHandler, ThreadingTCPServer
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -16,8 +22,6 @@ import pytz
 from grottdata import decrypt, format_multi_line, pr, procdata
 from grottproxy import Forward, validate_record
 
-# grottserver.py emulates the server.growatt.com website and is initial developed for debugging and testing grott.
-# Updated: 2022-08-07
 # Version:
 verrel = "0.0.9"
 
@@ -117,7 +121,7 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
     return commandresponse[qname]["queue"][sendcommand][regkey].get(timeout=timeout)
 
 
-class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
+class GrottHttpRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
         self.send_queuereg = send_queuereg
         self.conf = conf
@@ -129,6 +133,9 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
         self.timeout = conf.httptimeout
 
         super().__init__(*args)
+
+    def log_message(self, format, *args):
+        pr("- GrottHttpserver - %s - %s" % (self.address_string(), format % args))
 
     def send_header(self, keyword, value):
         if keyword.lower() == "server":
@@ -645,7 +652,7 @@ class GrottHttpRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
 
-class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+class GrottHttpServer(ThreadingHTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
@@ -663,7 +670,7 @@ class GrottHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         pr(f"- GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}")
 
 
-class GrottServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class GrottServer(ThreadingTCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
@@ -678,11 +685,12 @@ class GrottServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
         shutdown_queue = {}
         self.allow_reuse_address = True
+        self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
         pr(f"- Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
-class GrottServerHandler(socketserver.StreamRequestHandler):
+class GrottServerHandler(StreamRequestHandler):
     def __init__(
         self, send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
     ):
