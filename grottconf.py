@@ -11,7 +11,7 @@ import os
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import \
-    SYNCHRONOUS as INFLUXDB_SYNCHRONOUS
+    ASYNCHRONOUS as INFLUXDB_ASYNCHRONOUS
 
 from grottdata import pr, str2bool
 
@@ -134,7 +134,7 @@ class Conf:
             self.ifbucket_api = self.influxclient.buckets_api()
             self.iforganization_api = self.influxclient.organizations_api()
             self.ifwrite_api = self.influxclient.write_api(
-                write_options=INFLUXDB_SYNCHRONOUS
+                write_options=INFLUXDB_ASYNCHRONOUS
             )
 
     def print(self):
