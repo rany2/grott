@@ -155,6 +155,20 @@ class Conf:
         pr("\tmode:        \t", self.mode)
         pr("\tgrottip      \t", self.grottip)
         pr("\tgrottport    \t", self.grottport)
+        pr("\ttimeout:     \t", self.timeout)
+
+        pr("_Server:")
+        pr("\thttphost:    \t", self.httphost)
+        pr("\thttpport:    \t", self.httpport)
+        # pr("\thttptoken:   \t", self.httptoken)
+        pr("\thttptoken:   \t", "**secret**")
+        pr("\tfirstping:   \t", self.firstping)
+        pr("\tsendseq:     \t", self.sendseq)
+        pr("\tserverfwd:   \t", self.serverforward)
+        pr("\thttptimeout: \t", self.httptimeout)
+        pr("\tfwdretry:    \t", self.forwardretry)
+        pr("\tfwdtimeout:  \t", self.forwardtimeout)
+
         pr("_MQTT:")
         pr("\tnomqtt       \t", self.nomqtt)
         pr("\tmqttip:      \t", self.mqttip)
@@ -167,9 +181,11 @@ class Conf:
         pr("\tmqttuser:    \t", self.mqttuser)
         pr("\tmqttpsw:     \t", "**secret**")
         # print("\tmqttpsw:     \t",self.mqttpsw)
+
         pr("_Growatt server:")
         pr("\tgrowattip:   \t", self.growattip)
         pr("\tgrowattport: \t", self.growattport)
+
         pr("_PVOutput:")
         pr("\tpvoutput:    \t", self.pvoutput)
         pr("\tpvdisv1:     \t", self.pvdisv1)
@@ -182,9 +198,10 @@ class Conf:
         else:
             pr("\tpvsystemid:  \t", self.pvsystemid)
             pr("\tpvinvertid:  \t", self.pvinverterid)
+
         pr("_Influxdb:")
         pr("\tinflux:      \t", self.influx)
-        pr("\tifurl:       \t", self.ifurl)
+        pr("\turl:         \t", self.ifurl)
         pr("\torganization:\t", self.iforg)
         pr("\tbucket:      \t", self.ifbucket)
         pr("\ttoken:       \t", "**secret**")
@@ -1347,7 +1364,7 @@ class Conf:
             f.extend(filenames)
             break
         for x in f:
-            if x[0].lower() == "t" and x.find(".json") > 0:
+            if x[0].lower() == "t" and x[-len(".json") :].lower() == ".json":
                 pr(x)
                 with open(x, "r", encoding="utf-8") as json_file:
                     dicttemp = json.load(json_file)
@@ -1355,8 +1372,6 @@ class Conf:
 
         if self.verbose:
             pr("\nGrott layout records loaded")
-        for key, value in self.recorddict.items():
-            if self.verbose:
+            for key, value in self.recorddict.items():
                 pr(key, " : ")
-            if self.verbose:
                 pr(value)

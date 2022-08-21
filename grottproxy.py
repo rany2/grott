@@ -26,7 +26,7 @@ def validate_record(xdata):
     data = bytes.fromhex(xdata)
     ldata = len(data)
     len_orgpayload = int.from_bytes(data[4:6], "big")
-    header = "".join("{:02x}".format(n) for n in data[0:8])
+    header = "".join(f"{n:02x}" for n in data[0:8])
     protocol = header[6:8]
 
     if protocol in ("05", "06"):
@@ -68,7 +68,7 @@ class Forward:
             return False
 
 
-class GrowattProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class GrottProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """This wrapper will create a Growatt server where the handler has access to the config"""
 
     def __init__(self, conf):
@@ -77,14 +77,14 @@ class GrowattProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
             Using a function to create and return the handler,
             so we can provide our own argument (config)
             """
-            return GrowattProxyHandler(conf, *args)
+            return GrottProxyHandler(conf, *args)
 
         self.allow_reuse_address = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
         pr(f"- Grottproxy - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
-class GrowattProxyHandler(socketserver.StreamRequestHandler):
+class GrottProxyHandler(socketserver.StreamRequestHandler):
     def __init__(self, conf, *args):
         self.conf = conf
         self.verbose = conf.verbose
@@ -102,11 +102,11 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
         super().__init__(*args)
 
     def handle(self):
-        pr(f"- Grottproxy - Client connected:", self.client_address)
+        pr("- Grottproxy - Client connected:", self.client_address)
 
         self.forward = Forward(self.conf.timeout).start(*self.forward_to)
         if not self.forward:
-            pr(f"- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
+            pr("- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
             return
 
         read_thread = threading.Thread(
@@ -180,7 +180,7 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
                     break
                 data += more_data
                 self.process_data(data, queues=[self.send_to_device])
-        except OSError as e:
+        except OSError:
             pr("- Grottproxy - Forward read error")
         finally:
             self.shutdown_queue.put_nowait(True)
@@ -202,7 +202,7 @@ class GrowattProxyHandler(socketserver.StreamRequestHandler):
 
     def process_data(self, data, queues):
         # test if record is not corrupted
-        vdata = "".join("{:02x}".format(n) for n in data)
+        vdata = "".join(f"{n:02x}" for n in data)
         validatecc = validate_record(vdata)
         if validatecc != 0:
             pr("- Grott - grottproxy - Invalid data record received, not processing")
@@ -292,7 +292,7 @@ class Proxy:
         if conf.grottip == "default":
             conf.grottip = "0.0.0.0"
 
-        proxy_server = GrowattProxy(conf)
+        proxy_server = GrottProxy(conf)
         try:
             proxy_server_thread = threading.Thread(target=proxy_server.serve_forever)
             proxy_server_thread.daemon = True

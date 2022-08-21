@@ -703,7 +703,7 @@ class GrottServerHandler(socketserver.StreamRequestHandler):
         super().__init__(*args)
 
     def handle(self):
-        pr(f"- Grottserver - Client connected:", self.client_address)
+        pr("- Grottserver - Client connected:", self.client_address)
 
         # setup forwarding to Growatt server if configured
         if self.conf.serverforward:

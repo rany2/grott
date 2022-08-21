@@ -13,52 +13,52 @@ class Sniff:
 
     def main(self, conf):
         while True:
-            self.raw_data, self.addr = self.conn.recvfrom(65535)
-            self.eth = Ethernet(self.raw_data)
+            raw_data, _ = self.conn.recvfrom(65535)
+            eth = Ethernet(raw_data)
             if conf.trace:
                 # fmt: off
-                pr("\n- Ethernet Frame:\n" + 
-                f"\t - Destination: {self.eth.dest_mac}, Source: {self.eth.src_mac}, Protocol: {self.eth.proto}")
+                pr("\n- Ethernet Frame:\n" +
+                f"\t - Destination: {eth.dest_mac}, Source: {eth.src_mac}, Protocol: {eth.proto}")
                 # fmt: on
             # IPv4
-            if self.eth.proto == 8:
-                self.ipv4 = IPv4(self.eth.data)
+            if eth.proto == 8:
+                ipv4 = IPv4(eth.data)
                 if conf.trace:
                     # fmt: off
                     pr("- IPv4 Packet protocol 8:"
-                    +f"\n\t - Version: {self.ipv4.version}, Header Length: {self.ipv4.header_length}, TTL: {self.ipv4.ttl},"
-                    +f"\n\t - Protocol: {self.ipv4.proto}, Source: {self.ipv4.src}, Target: {self.ipv4.target}")
+                    +f"\n\t - Version: {ipv4.version}, Header Length: {ipv4.header_length}, TTL: {ipv4.ttl},"
+                    +f"\n\t - Protocol: {ipv4.proto}, Source: {ipv4.src}, Target: {ipv4.target}")
                     # fmt: on
 
                 # TCP
-                # elif self.ipv4.proto == 6:
-                if self.ipv4.proto == 6:
-                    self.tcp = TCP(self.ipv4.data)
+                # elif ipv4.proto == 6:
+                if ipv4.proto == 6:
+                    tcp = TCP(ipv4.data)
                     if conf.trace:
                         # fmt: off
                         pr("- TCP Segment protocol 6 found"
-                        +f"\n\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dst_port}"
-                        +f"\n\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}")
+                        +f"\n\t - Source Port: {tcp.src_port}, Destination Port: {tcp.dest_port}"
+                        +f"\n\t - Source IP: {ipv4.src}, Destination IP: {ipv4.target}")
                         # fmt: on
 
                     if (
-                        self.tcp.dest_port == conf.growattport
-                        and self.ipv4.target == conf.growattip
+                        tcp.dest_port == conf.growattport
+                        and ipv4.target == conf.growattip
                     ):
                         if conf.verbose:
                             # fmt: off
                             pr("- TCP Segment Growatt:"
-                            +f"\n\t - Source Port: {self.tcp.src_port}, Destination Port: {self.tcp.dest_port}"
-                            +f"\n\t - Source IP: {self.ipv4.src}, Destination IP: {self.ipv4.target}"
-                            +f"\n\t - Sequence: {self.tcp.sequence}, Acknowledgment: {self.tcp.acknowledgment}"
+                            +f"\n\t - Source Port: {tcp.src_port}, Destination Port: {tcp.dest_port}"
+                            +f"\n\t - Source IP: {ipv4.src}, Destination IP: {ipv4.target}"
+                            +f"\n\t - Sequence: {tcp.sequence}, Acknowledgment: {tcp.acknowledgment}"
                             +"\n\t - Flags:"
-                            +f"\n\t\t - URG: {self.tcp.flag_urg}, ACK: {self.tcp.flag_ack}, PSH: {self.tcp.flag_psh}"
-                            +f"\n\t\t - RST: {self.tcp.flag_rst}, SYN: {self.tcp.flag_syn}, FIN:{self.tcp.flag_fin}")
+                            +f"\n\t\t - URG: {tcp.flag_urg}, ACK: {tcp.flag_ack}, PSH: {tcp.flag_psh}"
+                            +f"\n\t\t - RST: {tcp.flag_rst}, SYN: {tcp.flag_syn}, FIN:{tcp.flag_fin}")
                             # fmt: on
 
                         # fmt: off
-                        if len(self.tcp.data) > conf.minrecl:
-                            procdata(conf, self.tcp.data)
+                        if len(tcp.data) > conf.minrecl:
+                            procdata(conf, tcp.data)
                         else:
                             if conf.verbose:
                                 pr("- Data less then minimum record length, data not processed")
@@ -75,9 +75,8 @@ class Sniff:
 
 def get_mac_addr(mac_raw):
     """Returns MAC as string from bytes (ie AA:BB:CC:DD:EE:FF)"""
-    byte_str = map("{:02x}".format, mac_raw)
-    mac_addr = ":".join(byte_str).upper()
-    return mac_addr
+    mac_addr = struct.unpack("!6B", mac_raw)
+    return ":".join(map(lambda x: format(x, "X"), mac_addr))
 
 
 class Ethernet:
