@@ -58,7 +58,7 @@ def getcurrenttime(conf):
     return datetime.now(local).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
+def createtimecommand(conf, protocol, loggerid):
     bodybytes = loggerid.encode("ascii")
     body = bodybytes.hex()
     if protocol == "06":
@@ -88,12 +88,6 @@ def createtimecommand(conf, protocol, loggerid, sequenceno, commandresponse):
 
     if conf.verbose:
         pr("- Grottserver - Time command created:\n" + format_multi_line("\t", body))
-
-    # just to be sure delete register info
-    try:
-        del commandresponse["18"]["001f"]
-    except KeyError:
-        pass
 
     return body
 
@@ -1008,8 +1002,6 @@ class GrottServerHandler(socketserver.StreamRequestHandler):
                     self.conf,
                     protocol,
                     loggerid,
-                    "0001",
-                    self.commandresponse[self.qname],
                 )
                 if self.verbose:
                     pr("- Grottserver 03 announce data record processed")

@@ -602,7 +602,7 @@ def procdata(conf, data):
             utc_dt = datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S") - curtz
         else:
             naive = datetime.strptime(jsondate, "%Y-%m-%dT%H:%M:%S")
-            local_dt = local.localize(naive, is_dst=None)
+            local_dt = local.localize(naive)
             utc_dt = local_dt.astimezone(pytz.utc)
 
         ifdt = utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
