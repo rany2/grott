@@ -61,6 +61,7 @@ class Conf:
         self.mqttport = 1883
         self.mqtttopic = "energy/growatt"
         self.mqttmtopic = "False"
+        self.mqttinverterintopic = False
         self.mqttmtopicname = "energy/meter"
         self.nomqtt = False  # not in ini file, can only be changed via start parms
         self.mqttauth = False
@@ -176,6 +177,7 @@ class Conf:
         pr("\tmqttip:      \t", self.mqttip)
         pr("\tmqttport:    \t", self.mqttport)
         pr("\tmqtttopic:   \t", self.mqtttopic)
+        pr("\tmqttinverterintopic: \t", self.mqttinverterintopic)
         pr("\tmqttmtopic:  \t", self.mqttmtopic)
         pr("\tmqttmtopicname:\t", self.mqttmtopicname)
         pr("\tmqtttretain: \t", self.mqttretain)
@@ -407,6 +409,8 @@ class Conf:
             self.mqttport = config.getint("MQTT", "port")
         if config.has_option("MQTT", "topic"):
             self.mqtttopic = config.get("MQTT", "topic")
+        if config.has_option("MQTT", "inverterintopic"):
+            self.mqttinverterintopic = config.getboolean("MQTT", "inverterintopic")
         if config.has_option("MQTT", "mtopic"):
             self.mqttmtopic = config.get("MQTT", "mtopic")
         if config.has_option("MQTT", "mtopicname"):
@@ -543,6 +547,8 @@ class Conf:
             self.mqttmtopicname = self.getenv("gmqttmtopicname")
         if os.getenv("gmqttretain") is not None:
             self.mqttretain = self.getenv("gmqttretain")
+        if os.getenv("gmqttinverterintopic") is not None:
+            self.mqttinverterintopic = self.getenv("gmqttinverterintopic")
         if os.getenv("gmqttauth") is not None:
             self.mqttauth = self.getenv("gmqttauth")
         if os.getenv("gmqttuser") is not None:

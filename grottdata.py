@@ -543,8 +543,16 @@ def procdata(conf, data):
             # if meter data use mqtttopicname topic
             if (header[14:16] in ("20", "1b")) and conf.mqttmtopic:
                 mqtttopic = conf.mqttmtopicname
+                if conf.mqttinverterintopic:
+                    mqtttopic = f'{conf.mqtttopic}/{definedkey["datalogserial"]}'
             else:
                 mqtttopic = conf.mqtttopic
+                if conf.mqttinverterintopic:
+                    if device_defined:
+                        mqtttopic = f'{conf.mqtttopic}/{definedkey["device"]}'
+                    else:
+                        mqtttopic = f'{conf.mqtttopic}/{definedkey["pvserial"]}'
+
             pr("- Grott MQTT topic used: " + mqtttopic)
 
             if conf.mqttretain:
