@@ -7,6 +7,7 @@ Version 2.7.3
 import argparse
 import json
 import os
+from collections import defaultdict
 from configparser import ConfigParser
 
 from influxdb_client import InfluxDBClient
@@ -22,10 +23,20 @@ def get_option_environ(option):
 
 
 class CustomConfigParser(ConfigParser):
+    def __init__(self, *args, **kwargs):
+        self.section_opt_pairing = defaultdict(list)
+        return super().__init__(*args, **kwargs)
+
     def has_option(self, section: str, option: str) -> bool:
         if get_option_environ(option):
             return True
         return super().has_option(section, option)
+
+    def has_option_store_confname(self, section, option, confvar=None) -> bool:
+        if not confvar:
+            confvar = option
+        self.section_opt_pairing[section].append((option, confvar))
+        return self.has_option(section, option)
 
     def _get_conv(self, *args, **kwargs):
         _, option, conv = args
@@ -36,6 +47,7 @@ class CustomConfigParser(ConfigParser):
 
 class Conf:
     def __init__(self, vrm):
+        self.config = None
         self.verrel = vrm
 
         # Set default variables
@@ -156,81 +168,30 @@ class Conf:
 
     def print(self):
         pr("\nGrott settings:\n")
-        pr("_Generic:")
-        pr("\tversion:              \t", self.verrel)
-        pr("\tverbose:              \t", self.verbose)
-        pr("\ttrace:                \t", self.trace)
-        pr("\tconfig file:          \t", self.cfgfile)
-        pr("\tminrecl:              \t", self.minrecl)
-        pr("\tinvtype:              \t", self.invtype)
-        pr("\tinclude_all:          \t", self.includeall)
-        pr("\tblockcmd:             \t", self.blockcmd)
-        pr("\tnoipf:                \t", self.noipf)
-        pr("\ttime:                 \t", self.gtime)
-        pr("\tsendbuf:              \t", self.sendbuf)
-        pr("\ttimezone:             \t", self.tmzone)
-        pr("\tinverterid:           \t", self.inverterid)
-        pr("\tmode:                 \t", self.mode)
-        pr("\tgrottip               \t", self.grottip)
-        pr("\tgrottport             \t", self.grottport)
-        pr("\ttimeout:              \t", self.timeout)
 
-        pr("_Server:")
-        pr("\thttphost:             \t", self.httphost)
-        pr("\thttpport:             \t", self.httpport)
-        # pr("\thttptoken:            \t", self.httptoken)
-        pr("\thttptoken:            \t", "**secret**")
-        pr("\tfirstping:            \t", self.firstping)
-        pr("\tsendseq:              \t", self.sendseq)
-        pr("\tserverfwd:            \t", self.serverforward)
-        pr("\thttptimeout:          \t", self.httptimeout)
-        pr("\tfwdretry:             \t", self.forwardretry)
-        pr("\tfwdtimeout:           \t", self.forwardtimeout)
+        for section, variables in self.config.section_opt_pairing.items():
+            pr(f"_{section}:")
+            for option, confname in variables:
+                try:
+                    value = eval(f"self.{confname}")
+                except AttributeError:
+                    try:
+                        int(confname[-1])
+                        head = confname.rstrip("0123456789")
+                        if not (
+                            isinstance(eval(f"self.{head}"), list)
+                            or isinstance(eval(f"self.{head}"), dict)
+                        ):
+                            raise Exception
+                        tail = confname[len(head) :]
+                        value = eval(f"self.{head}[{tail}]")
+                    except Exception:
+                        value = "N/A"
 
-        pr("_MQTT:")
-        pr("\tnomqtt                \t", self.nomqtt)
-        pr("\tmqttip:               \t", self.mqttip)
-        pr("\tmqttport:             \t", self.mqttport)
-        pr("\tmqtttopic:            \t", self.mqtttopic)
-        pr("\tmqttdeviceidintopic:  \t", self.mqttdeviceidintopic)
-        pr("\tmqttmtopic:           \t", self.mqttmtopic)
-        pr("\tmqttmtopicname:       \t", self.mqttmtopicname)
-        pr("\tmqtttretain:          \t", self.mqttretain)
-        pr("\tmqtttauth:            \t", self.mqttauth)
-        pr("\tmqttuser:             \t", self.mqttuser)
-        pr("\tmqttpsw:              \t", "**secret**")
-        # print("\tmqttpsw:              \t",self.mqttpsw)
+                if option in ("httptoken", "password", "apikey", "token"):
+                    value = "**secret**"
 
-        pr("_Growatt server:")
-        pr("\tgrowattip:            \t", self.growattip)
-        pr("\tgrowattport:          \t", self.growattport)
-
-        pr("_PVOutput:")
-        pr("\tpvoutput:             \t", self.pvoutput)
-        pr("\tpvdisv1:              \t", self.pvdisv1)
-        pr("\tpvtemp:               \t", self.pvtemp)
-        pr("\tpvurl:                \t", self.pvurl)
-        pr("\tpvapikey:             \t", self.pvapikey)
-        pr("\tpvinverters:          \t", self.pvinverters)
-        if self.pvinverters == 1:
-            pr("\tpvsystemid:           \t", self.pvsystemid[1])
-        else:
-            pr("\tpvsystemid:           \t", self.pvsystemid)
-            pr("\tpvinvertid:           \t", self.pvinverterid)
-        pr("\tpvtimeout:            \t", self.pvtimeout)
-
-        pr("_Influxdb:")
-        pr("\tinflux:               \t", self.influx)
-        pr("\turl:                  \t", self.ifurl)
-        pr("\torganization:         \t", self.iforg)
-        pr("\tbucket:               \t", self.ifbucket)
-        pr("\ttoken:                \t", "**secret**")
-        # print("\ttoken:                \t",self.iftoken)
-
-        pr("_Extension:")
-        pr("\textension:            \t", self.extension)
-        pr("\textname:              \t", self.extname)
-        pr("\textvar:               \t", self.extvar)
+                pr("\t%-30s\t%s" % (option, value))
 
         pr()
 
@@ -329,130 +290,142 @@ class Conf:
     def procconf(self):
         pr("\nGrott process configuration file")
         config = CustomConfigParser()
+        self.config = config
         config.read(self.cfgfile)
-        if config.has_option("Generic", "minrecl"):
+        if config.has_option_store_confname("Generic", "minrecl"):
             self.minrecl = config.getint("Generic", "minrecl")
-        if config.has_option("Generic", "verbose"):
+        if config.has_option_store_confname("Generic", "verbose"):
             self.verbose = config.getboolean("Generic", "verbose")
-        if config.has_option("Generic", "includeall"):
+        if config.has_option_store_confname("Generic", "includeall"):
             self.includeall = config.getboolean("Generic", "includeall")
-        if config.has_option("Generic", "invtype"):
+        if config.has_option_store_confname("Generic", "invtype"):
             self.invtype = config.get("Generic", "invtype")
-        if config.has_option("Generic", "inverterid"):
+        if config.has_option_store_confname("Generic", "inverterid"):
             self.inverterid = config.get("Generic", "inverterid")
-        if config.has_option("Generic", "blockcmd"):
+        if config.has_option_store_confname("Generic", "blockcmd"):
             self.blockcmd = config.get("Generic", "blockcmd")
-        if config.has_option("Generic", "noipf"):
+        if config.has_option_store_confname("Generic", "noipf"):
             self.noipf = config.get("Generic", "noipf")
-        if config.has_option("Generic", "time"):
+        if config.has_option_store_confname("Generic", "time", "gtime"):
             self.gtime = config.get("Generic", "time")
-        if config.has_option("Generic", "sendbuf"):
+        if config.has_option_store_confname("Generic", "sendbuf"):
             self.sendbuf = config.get("Generic", "sendbuf")
-        if config.has_option("Generic", "timezone"):
+        if config.has_option_store_confname("Generic", "timezone", "tmzone"):
             self.tmzone = config.get("Generic", "timezone")
-        if config.has_option("Generic", "mode"):
+        if config.has_option_store_confname("Generic", "mode"):
             self.mode = config.get("Generic", "mode")
-        if config.has_option("Generic", "ip"):
+        if config.has_option_store_confname("Generic", "ip", "grottip"):
             self.grottip = config.get("Generic", "ip")
-        if config.has_option("Generic", "port"):
+        if config.has_option_store_confname("Generic", "port", "grottport"):
             self.grottport = config.getint("Generic", "port")
-        if config.has_option("Generic", "timeout"):
+        if config.has_option_store_confname("Generic", "timeout"):
             self.timeout = config.getfloat("Generic", "timeout")
 
-        if config.has_option("Growatt", "ip"):
+        if config.has_option_store_confname("Growatt", "ip", "growattip"):
             self.growattip = config.get("Growatt", "ip")
-        if config.has_option("Growatt", "port"):
+        if config.has_option_store_confname("Growatt", "port", "growattport"):
             self.growattport = config.getint("Growatt", "port")
-        if config.has_option("Server", "httpip"):
+        if config.has_option_store_confname("Server", "httpip", "httphost"):
             self.httphost = config.get("Server", "httpip")
-        if config.has_option("Server", "httpport"):
+        if config.has_option_store_confname("Server", "httpport"):
             self.httpport = config.getint("Server", "httpport")
-        if config.has_option("Server", "httptoken"):
+        if config.has_option_store_confname("Server", "httptoken"):
             self.httptoken = config.get("Server", "httptoken")
 
-        if config.has_option("Server", "httptimeout"):
+        if config.has_option_store_confname("Server", "httptimeout"):
             self.httptimeout = config.getfloat("Server", "httptimeout")
-        if config.has_option("Server", "registerreadtimeout"):
+        if config.has_option_store_confname("Server", "registerreadtimeout"):
             self.registerreadtimeout = config.getfloat("Server", "registerreadtimeout")
-        if config.has_option("Server", "registerwritetimeout"):
+        if config.has_option_store_confname("Server", "registerwritetimeout"):
             self.registerwritetimeout = config.getfloat("HTTP", "registerwritetimeout")
-        if config.has_option("Server", "firstping"):
+        if config.has_option_store_confname("Server", "firstping"):
             self.firstping = config.getboolean("Server", "firstping")
-        if config.has_option("Server", "sendseq"):
+        if config.has_option_store_confname("Server", "sendseq"):
             self.sendseq = config.getint("Server", "sendseq")
-        if config.has_option("Server", "serverforward"):
+        if config.has_option_store_confname("Server", "serverforward"):
             self.serverforward = config.getboolean("Server", "serverforward")
-        if config.has_option("Server", "forwardretry"):
+        if config.has_option_store_confname("Server", "forwardretry"):
             self.forwardretry = config.getint("Server", "forwardretry")
-        if config.has_option("Server", "forwardtimeout"):
+        if config.has_option_store_confname("Server", "forwardtimeout"):
             self.forwardtimeout = config.getfloat("Server", "forwardtimeout")
         if config.has_option_store_confname("Server", "write_delay_ms"):
             self.write_delay_ms = config.getfloat("Server", "write_delay_ms")
 
-        if config.has_option("MQTT", "nomqtt"):
+        if config.has_option_store_confname("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
-        if config.has_option("MQTT", "ip"):
+        if config.has_option_store_confname("MQTT", "ip", "mqttip"):
             self.mqttip = config.get("MQTT", "ip")
-        if config.has_option("MQTT", "port"):
+        if config.has_option_store_confname("MQTT", "port", "mqttport"):
             self.mqttport = config.getint("MQTT", "port")
-        if config.has_option("MQTT", "topic"):
+        if config.has_option_store_confname("MQTT", "topic", "mqtttopic"):
             self.mqtttopic = config.get("MQTT", "topic")
-        if config.has_option("MQTT", "inverterintopic"):
-            self.mqttdeviceidintopic = config.getboolean("MQTT", "inverterintopic")
-        if config.has_option("MQTT", "mtopic"):
+        if config.has_option_store_confname(
+            "MQTT", "deviceidintopic", "mqttdeviceidintopic"
+        ):
+            self.mqttdeviceidintopic = config.getboolean("MQTT", "deviceidintopic")
+        if config.has_option_store_confname("MQTT", "mtopic", "mqttmtopic"):
             self.mqttmtopic = config.get("MQTT", "mtopic")
-        if config.has_option("MQTT", "mtopicname"):
+        if config.has_option_store_confname("MQTT", "mtopicname", "mqttmtopicname"):
             self.mqttmtopicname = config.get("MQTT", "mtopicname")
-        if config.has_option("MQTT", "retain"):
+        if config.has_option_store_confname("MQTT", "retain", "mqttretain"):
             self.mqttretain = config.getboolean("MQTT", "retain")
-        if config.has_option("MQTT", "auth"):
-            self.mqttauth = config.getboolean("MQTT", "auth")
-        if config.has_option("MQTT", "user"):
+        if config.has_option_store_confname("MQTT", "auth", "mqttauth"):
+            self.mqttauth = config.getboolean("MQTT", "auth", "mqttauth")
+        if config.has_option_store_confname("MQTT", "user", "mqttuser"):
             self.mqttuser = config.get("MQTT", "user")
-        if config.has_option("MQTT", "password"):
+        if config.has_option_store_confname("MQTT", "password", "mqttpsw"):
             self.mqttpsw = config.get("MQTT", "password")
 
-        if config.has_option("PVOutput", "pvoutput"):
+        if config.has_option_store_confname("PVOutput", "pvoutput"):
             self.pvoutput = config.get("PVOutput", "pvoutput")
-        if config.has_option("PVOutput", "pvtemp"):
+        if config.has_option_store_confname("PVOutput", "pvtemp"):
             self.pvtemp = config.get("PVOutput", "pvtemp")
-        if config.has_option("PVOutput", "pvdisv1"):
+        if config.has_option_store_confname("PVOutput", "pvdisv1"):
             self.pvdisv1 = config.get("PVOutput", "pvdisv1")
-        if config.has_option("PVOutput", "pvinverters"):
+        if config.has_option_store_confname("PVOutput", "pvinverters"):
             self.pvinverters = config.getint("PVOutput", "pvinverters")
-        if config.has_option("PVOutput", "apikey"):
+        if config.has_option_store_confname("PVOutput", "apikey", "pvapikey"):
             self.pvapikey = config.get("PVOutput", "apikey")
         # if more inverter are installed at the same interface (shinelink) get systemids
         # if self.pvinverters > 1 :
         for x in range(self.pvinverters + 1):
-            if config.has_option("PVOutput", "systemid" + str(x)):
-                self.pvsystemid[x] = config.get("PVOutput", "systemid" + str(x))
-            if config.has_option("PVOutput", "inverterid" + str(x)):
-                self.pvinverterid[x] = config.get("PVOutput", "inverterid" + str(x))
+            if x == 0:
+                continue
+
+            if config.has_option_store_confname(
+                "PVOutput", f"systemid{x}", f"pvsystemid{x}"
+            ):
+                self.pvsystemid[x] = config.get("PVOutput", f"systemid{x}")
+            if config.has_option_store_confname(
+                "PVOutput", f"inverterid{x}", f"pvinverterid{x}"
+            ):
+                self.pvinverterid[x] = config.get("PVOutput", f"inverterid{x}")
         if self.pvinverters == 1:
-            if config.has_option("PVOutput", "systemid"):
+            if config.has_option_store_confname(
+                "PVOutput", "systemid", f"pvsystemid{x}"
+            ):
                 self.pvsystemid[1] = config.get("PVOutput", "systemid")
-        if config.has_option("PVOutput", "pvtimeout"):
+        if config.has_option_store_confname("PVOutput", "pvtimeout"):
             self.pvtimeout = config.getfloat("PVOutput", "pvtimeout")
 
         # INFLUX
-        if config.has_option("influx", "influx"):
+        if config.has_option_store_confname("influx", "influx"):
             self.influx = config.get("influx", "influx")
-        if config.has_option("influx", "url"):
+        if config.has_option_store_confname("influx", "url", "ifurl"):
             self.ifurl = config.get("influx", "url")
-        if config.has_option("influx", "org"):
+        if config.has_option_store_confname("influx", "org", "iforg"):
             self.iforg = config.get("influx", "org")
-        if config.has_option("influx", "bucket"):
+        if config.has_option_store_confname("influx", "bucket", "ifbucket"):
             self.ifbucket = config.get("influx", "bucket")
-        if config.has_option("influx", "token"):
+        if config.has_option_store_confname("influx", "token", "iftoken"):
             self.iftoken = config.get("influx", "token")
 
         # extension
-        if config.has_option("extension", "extension"):
+        if config.has_option_store_confname("extension", "extension"):
             self.extension = config.get("extension", "extension")
-        if config.has_option("extension", "extname"):
+        if config.has_option_store_confname("extension", "extname"):
             self.extname = config.get("extension", "extname")
-        if config.has_option("extension", "extvar"):
+        if config.has_option_store_confname("extension", "extvar"):
             self.extvar = eval(config.get("extension", "extvar"))
 
     def set_recwl(self):
