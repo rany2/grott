@@ -401,7 +401,7 @@ class Conf:
                 self.pvinverterid[x] = config.get("PVOutput", f"inverterid{x}")
         if self.pvinverters == 1:
             if config.has_option_store_confname(
-                "PVOutput", "systemid", f"pvsystemid{x}"
+                "PVOutput", "systemid", "pvsystemid1"
             ):
                 self.pvsystemid[1] = config.get("PVOutput", "systemid")
         if config.has_option_store_confname("PVOutput", "pvtimeout"):
