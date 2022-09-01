@@ -5,10 +5,10 @@ Version 2.7.3
 """
 
 import argparse
+import configparser as cp
 import json
 import os
 from collections import defaultdict
-from configparser import ConfigParser
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import \
@@ -16,32 +16,55 @@ from influxdb_client.client.write_api import \
 
 from grottdata import pr, str2bool
 
+_UNSET = object()
+
 
 def get_option_environ(option):
     return os.getenv(f"g{option}")
 
 
-class CustomConfigParser(ConfigParser):
+class CustomConfigParser(cp.ConfigParser):
     def __init__(self, *args, **kwargs):
         self.section_opt_pairing = defaultdict(list)
         return super().__init__(*args, **kwargs)
 
-    def has_option(self, section: str, option: str) -> bool:
-        if get_option_environ(option):
+    def has_option(self, section: str, option: str, environ_key=_UNSET) -> bool:
+        if get_option_environ(option if environ_key is _UNSET else environ_key):
             return True
         return super().has_option(section, option)
 
-    def has_option_store_confname(self, section, option, confvar=None) -> bool:
-        if not confvar:
+    def has_option_store_confname(
+        self, section, option, confvar=_UNSET, **kwargs
+    ) -> bool:
+        if confvar is _UNSET:
             confvar = option
         self.section_opt_pairing[section].append((option, confvar))
-        return self.has_option(section, option)
+        return self.has_option(section, option, **kwargs)
 
     def _get_conv(self, *args, **kwargs):
         _, option, conv = args
-        if environ_value := get_option_environ(option):
+        environ_key = _UNSET
+        if "environ_key" in kwargs:
+            environ_key = kwargs["environ_key"]
+            del kwargs["environ_key"]
+        if environ_value := get_option_environ(
+            option if environ_key is _UNSET else environ_key
+        ):
             return conv(environ_value)
         return super()._get_conv(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        _, option = args
+        environ_key = _UNSET
+        if "environ_key" in kwargs:
+            environ_key = kwargs["environ_key"]
+            del kwargs["environ_key"]
+
+        if environ_value := get_option_environ(
+            option if environ_key is _UNSET else environ_key
+        ):
+            return environ_value
+        return super().get(*args, **kwargs)
 
 
 class Conf:
@@ -313,17 +336,27 @@ class Conf:
             self.tmzone = config.get("Generic", "timezone")
         if config.has_option_store_confname("Generic", "mode"):
             self.mode = config.get("Generic", "mode")
-        if config.has_option_store_confname("Generic", "ip", "grottip"):
-            self.grottip = config.get("Generic", "ip")
-        if config.has_option_store_confname("Generic", "port", "grottport"):
-            self.grottport = config.getint("Generic", "port")
+        if config.has_option_store_confname(
+            "Generic", "ip", "grottip", environ_key="grottip"
+        ):
+            self.grottip = config.get("Generic", "ip", environ_key="grottip")
+        if config.has_option_store_confname(
+            "Generic", "port", "grottport", environ_key="grottport"
+        ):
+            self.grottport = config.getint("Generic", "port", environ_key="grottport")
         if config.has_option_store_confname("Generic", "timeout"):
             self.timeout = config.getfloat("Generic", "timeout")
 
-        if config.has_option_store_confname("Growatt", "ip", "growattip"):
-            self.growattip = config.get("Growatt", "ip")
-        if config.has_option_store_confname("Growatt", "port", "growattport"):
-            self.growattport = config.getint("Growatt", "port")
+        if config.has_option_store_confname(
+            "Growatt", "ip", "growattip", environ_key="growattip"
+        ):
+            self.growattip = config.get("Growatt", "ip", environ_key="growattip")
+        if config.has_option_store_confname(
+            "Growatt", "port", "growattport", environ_key="growattport"
+        ):
+            self.growattport = config.getint(
+                "Growatt", "port", environ_key="growattport"
+            )
         if config.has_option_store_confname("Server", "httpip", "httphost"):
             self.httphost = config.get("Server", "httpip")
         if config.has_option_store_confname("Server", "httpport"):
@@ -352,28 +385,59 @@ class Conf:
 
         if config.has_option_store_confname("MQTT", "nomqtt"):
             self.nomqtt = config.getboolean("MQTT", "nomqtt")
-        if config.has_option_store_confname("MQTT", "ip", "mqttip"):
-            self.mqttip = config.get("MQTT", "ip")
-        if config.has_option_store_confname("MQTT", "port", "mqttport"):
-            self.mqttport = config.getint("MQTT", "port")
-        if config.has_option_store_confname("MQTT", "topic", "mqtttopic"):
-            self.mqtttopic = config.get("MQTT", "topic")
         if config.has_option_store_confname(
-            "MQTT", "deviceidintopic", "mqttdeviceidintopic"
+            "MQTT", "ip", "mqttip", environ_key="mqttip"
         ):
-            self.mqttdeviceidintopic = config.getboolean("MQTT", "deviceidintopic")
-        if config.has_option_store_confname("MQTT", "mtopic", "mqttmtopic"):
-            self.mqttmtopic = config.getboolean("MQTT", "mtopic")
-        if config.has_option_store_confname("MQTT", "mtopicname", "mqttmtopicname"):
-            self.mqttmtopicname = config.get("MQTT", "mtopicname")
-        if config.has_option_store_confname("MQTT", "retain", "mqttretain"):
-            self.mqttretain = config.getboolean("MQTT", "retain")
-        if config.has_option_store_confname("MQTT", "auth", "mqttauth"):
-            self.mqttauth = config.getboolean("MQTT", "auth", "mqttauth")
-        if config.has_option_store_confname("MQTT", "user", "mqttuser"):
-            self.mqttuser = config.get("MQTT", "user")
-        if config.has_option_store_confname("MQTT", "password", "mqttpsw"):
-            self.mqttpsw = config.get("MQTT", "password")
+            self.mqttip = config.get("MQTT", "ip", environ_key="mqttip")
+        if config.has_option_store_confname(
+            "MQTT", "port", "mqttport", environ_key="mqttport"
+        ):
+            self.mqttport = config.getint("MQTT", "port", environ_key="mqttport")
+        if config.has_option_store_confname(
+            "MQTT", "topic", "mqtttopic", environ_key="mqtttopic"
+        ):
+            self.mqtttopic = config.get("MQTT", "topic", environ_key="mqtttopic")
+        if config.has_option_store_confname(
+            "MQTT",
+            "deviceidintopic",
+            "mqttdeviceidintopic",
+            environ_key="mqttdeviceidintopic",
+        ):
+            self.mqttdeviceidintopic = config.getboolean(
+                "MQTT", "deviceidintopic", environ_key="mqttdeviceidintopic"
+            )
+        if config.has_option_store_confname(
+            "MQTT", "mtopic", "mqttmtopic", environ_key="mqttmtopic"
+        ):
+            self.mqttmtopic = config.getboolean(
+                "MQTT", "mtopic", environ_key="mqttmtopic"
+            )
+        if config.has_option_store_confname(
+            "MQTT", "mtopicname", "mqttmtopicname", environ_key="mqttmtopicname"
+        ):
+            self.mqttmtopicname = config.get(
+                "MQTT", "mtopicname", environ_key="mqttmtopicname"
+            )
+        if config.has_option_store_confname(
+            "MQTT", "retain", "mqttretain", environ_key="mqttretain"
+        ):
+            self.mqttretain = config.getboolean(
+                "MQTT", "retain", environ_key="mqttretain"
+            )
+        if config.has_option_store_confname(
+            "MQTT", "auth", "mqttauth", environ_key="mqttauth"
+        ):
+            self.mqttauth = config.getboolean(
+                "MQTT", "auth", "mqttauth", environ_key="mqttauth"
+            )
+        if config.has_option_store_confname(
+            "MQTT", "user", "mqttuser", environ_key="mqttuser"
+        ):
+            self.mqttuser = config.get("MQTT", "user", environ_key="mqttuser")
+        if config.has_option_store_confname(
+            "MQTT", "password", "mqttpsw", environ_key="mqttpassword"
+        ):
+            self.mqttpsw = config.get("MQTT", "password", environ_key="mqttpassword")
 
         if config.has_option_store_confname("PVOutput", "pvoutput"):
             self.pvoutput = config.getboolean("PVOutput", "pvoutput")
@@ -408,14 +472,22 @@ class Conf:
         # INFLUX
         if config.has_option_store_confname("influx", "influx"):
             self.influx = config.getboolean("influx", "influx")
-        if config.has_option_store_confname("influx", "url", "ifurl"):
-            self.ifurl = config.get("influx", "url")
-        if config.has_option_store_confname("influx", "org", "iforg"):
-            self.iforg = config.get("influx", "org")
-        if config.has_option_store_confname("influx", "bucket", "ifbucket"):
-            self.ifbucket = config.get("influx", "bucket")
-        if config.has_option_store_confname("influx", "token", "iftoken"):
-            self.iftoken = config.get("influx", "token")
+        if config.has_option_store_confname(
+            "influx", "url", "ifurl", environ_key="ifurl"
+        ):
+            self.ifurl = config.get("influx", "url", environ_key="ifurl")
+        if config.has_option_store_confname(
+            "influx", "org", "iforg", environ_key="iforg"
+        ):
+            self.iforg = config.get("influx", "org", environ_key="iforg")
+        if config.has_option_store_confname(
+            "influx", "bucket", "ifbucket", environ_key="ifbucket"
+        ):
+            self.ifbucket = config.get("influx", "bucket", environ_key="ifbucket")
+        if config.has_option_store_confname(
+            "influx", "token", "iftoken", environ_key="iftoken"
+        ):
+            self.iftoken = config.get("influx", "token", environ_key="iftoken")
 
         # extension
         if config.has_option_store_confname("extension", "extension"):
