@@ -123,7 +123,7 @@ class Conf:
         # Process config file and environmental variable
         self.procconf()
 
-        # Process environmental variable to override config and environmental settings
+        # Process command line arguments
         self.parserset()
 
         # prepare MQTT security
@@ -247,13 +247,8 @@ class Conf:
             metavar="[config file]",
         )
         parser.add_argument(
-            "-o",
-            help="set output file, if not specified output is stdout",
-            metavar="[output file]",
-        )
-        parser.add_argument(
             "-m",
-            help="set mode (sniff or proxy), if not specified mode is sniff",
+            help="set mode (sniff or proxy or server)",
             metavar="[mode]",
         )
         parser.add_argument(
@@ -301,11 +296,8 @@ class Conf:
         self.anoipf = args.noipf
 
         if args.m is not None:
-            # print("mode: ",args.m)
-            if args.m == "proxy":
-                self.amode = "proxy"
-            else:
-                self.amode = "sniff"  # default
+            self.amode = args.m
+
         if args.i is not None and args.i != "none":  # added none for docker support
             self.ainverterid = args.i
 
@@ -333,27 +325,6 @@ class Conf:
             self.nomqtt = self.anomqtt
         if hasattr(self, "apvoutput") and self.apvoutput:
             self.pvoutput = self.apvoutput
-        # Correct Bool if changed to string during parsing process
-        # if self.verbose == True or self.verbose == "True" : self.verbose = True
-        # else : self.verbose = False
-        self.verbose = str2bool(self.verbose)
-        self.trace = str2bool(self.trace)
-        self.includeall = str2bool(self.includeall)
-        self.blockcmd = str2bool(self.blockcmd)
-        self.noipf = str2bool(self.noipf)
-        self.sendbuf = str2bool(self.sendbuf)
-        #
-        self.nomqtt = str2bool(self.nomqtt)
-        self.mqttmtopic = str2bool(self.mqttmtopic)
-        self.mqttauth = str2bool(self.mqttauth)
-        self.mqttretain = str2bool(self.mqttretain)
-        #
-        self.pvoutput = str2bool(self.pvoutput)
-        self.pvdisv1 = str2bool(self.pvdisv1)
-        self.pvtemp = str2bool(self.pvtemp)
-        #
-        self.influx = str2bool(self.influx)
-        self.extension = str2bool(self.extension)
 
     def procconf(self):
         pr("\nGrott process configuration file")
