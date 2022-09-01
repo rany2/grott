@@ -68,6 +68,7 @@ class Conf:
         self.httptimeout = 10.0
         self.forwardretry = 1
         self.forwardtimeout = 2.0
+        self.write_delay_ms = 100
 
         # Growatt server default
         self.growattip = "47.91.67.66"
@@ -414,6 +415,8 @@ class Conf:
             self.forwardretry = config.getint("Server", "forwardretry")
         if config.has_option("Server", "forwardtimeout"):
             self.forwardtimeout = config.getfloat("Server", "forwardtimeout")
+        if config.has_option_store_confname("Server", "write_delay_ms"):
+            self.write_delay_ms = config.getfloat("Server", "write_delay_ms")
 
         if config.has_option("MQTT", "nomqtt"):
             self.nomqtt = config.get("MQTT", "nomqtt")
