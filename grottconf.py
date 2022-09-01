@@ -5,16 +5,33 @@ Version 2.7.3
 """
 
 import argparse
-import configparser
-import ipaddress
 import json
 import os
+from configparser import ConfigParser
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import \
     ASYNCHRONOUS as INFLUXDB_ASYNCHRONOUS
 
 from grottdata import pr, str2bool
+
+
+def get_option_environ(option):
+    if value := os.getenv(f"g{option}"):
+        return value
+
+
+class CustomConfigParser(ConfigParser):
+    def has_option(self, section: str, option: str) -> bool:
+        if get_option_environ(option):
+            return True
+        return super().has_option(section, option)
+
+    def _get_conv(self, *args, **kwargs):
+        _, option, conv = args
+        if environ_value := get_option_environ(option):
+            return conv(environ_value)
+        return super()._get_conv(*args, **kwargs)
 
 
 class Conf:
@@ -61,7 +78,7 @@ class Conf:
         self.mqttport = 1883
         self.mqtttopic = "energy/growatt"
         self.mqttmtopic = "False"
-        self.mqttinverterintopic = False
+        self.mqttdeviceidintopic = False
         self.mqttmtopicname = "energy/meter"
         self.nomqtt = False  # not in ini file, can only be changed via start parms
         self.mqttauth = False
@@ -102,11 +119,8 @@ class Conf:
         # process command settings that set processing values (verbose, trace, output, config, nomqtt)
         self.parserinit()
 
-        # Process config file
+        # Process config file and environmental variable
         self.procconf()
-
-        # Process environmental variable
-        self.procenv()
 
         # Process environmental variable to override config and environmental settings
         self.parserset()
@@ -142,80 +156,80 @@ class Conf:
     def print(self):
         pr("\nGrott settings:\n")
         pr("_Generic:")
-        pr("\tversion:     \t", self.verrel)
-        pr("\tverbose:     \t", self.verbose)
-        pr("\ttrace:       \t", self.trace)
-        pr("\tconfig file: \t", self.cfgfile)
-        pr("\tminrecl:     \t", self.minrecl)
-        pr("\tinvtype:     \t", self.invtype)
-        pr("\tinclude_all: \t", self.includeall)
-        pr("\tblockcmd:    \t", self.blockcmd)
-        pr("\tnoipf:       \t", self.noipf)
-        pr("\ttime:        \t", self.gtime)
-        pr("\tsendbuf:     \t", self.sendbuf)
-        pr("\ttimezone:    \t", self.tmzone)
-        pr("\tinverterid:  \t", self.inverterid)
-        pr("\tmode:        \t", self.mode)
-        pr("\tgrottip      \t", self.grottip)
-        pr("\tgrottport    \t", self.grottport)
-        pr("\ttimeout:     \t", self.timeout)
+        pr("\tversion:              \t", self.verrel)
+        pr("\tverbose:              \t", self.verbose)
+        pr("\ttrace:                \t", self.trace)
+        pr("\tconfig file:          \t", self.cfgfile)
+        pr("\tminrecl:              \t", self.minrecl)
+        pr("\tinvtype:              \t", self.invtype)
+        pr("\tinclude_all:          \t", self.includeall)
+        pr("\tblockcmd:             \t", self.blockcmd)
+        pr("\tnoipf:                \t", self.noipf)
+        pr("\ttime:                 \t", self.gtime)
+        pr("\tsendbuf:              \t", self.sendbuf)
+        pr("\ttimezone:             \t", self.tmzone)
+        pr("\tinverterid:           \t", self.inverterid)
+        pr("\tmode:                 \t", self.mode)
+        pr("\tgrottip               \t", self.grottip)
+        pr("\tgrottport             \t", self.grottport)
+        pr("\ttimeout:              \t", self.timeout)
 
         pr("_Server:")
-        pr("\thttphost:    \t", self.httphost)
-        pr("\thttpport:    \t", self.httpport)
-        # pr("\thttptoken:   \t", self.httptoken)
-        pr("\thttptoken:   \t", "**secret**")
-        pr("\tfirstping:   \t", self.firstping)
-        pr("\tsendseq:     \t", self.sendseq)
-        pr("\tserverfwd:   \t", self.serverforward)
-        pr("\thttptimeout: \t", self.httptimeout)
-        pr("\tfwdretry:    \t", self.forwardretry)
-        pr("\tfwdtimeout:  \t", self.forwardtimeout)
+        pr("\thttphost:             \t", self.httphost)
+        pr("\thttpport:             \t", self.httpport)
+        # pr("\thttptoken:            \t", self.httptoken)
+        pr("\thttptoken:            \t", "**secret**")
+        pr("\tfirstping:            \t", self.firstping)
+        pr("\tsendseq:              \t", self.sendseq)
+        pr("\tserverfwd:            \t", self.serverforward)
+        pr("\thttptimeout:          \t", self.httptimeout)
+        pr("\tfwdretry:             \t", self.forwardretry)
+        pr("\tfwdtimeout:           \t", self.forwardtimeout)
 
         pr("_MQTT:")
-        pr("\tnomqtt       \t", self.nomqtt)
-        pr("\tmqttip:      \t", self.mqttip)
-        pr("\tmqttport:    \t", self.mqttport)
-        pr("\tmqtttopic:   \t", self.mqtttopic)
-        pr("\tmqttinverterintopic: \t", self.mqttinverterintopic)
-        pr("\tmqttmtopic:  \t", self.mqttmtopic)
-        pr("\tmqttmtopicname:\t", self.mqttmtopicname)
-        pr("\tmqtttretain: \t", self.mqttretain)
-        pr("\tmqtttauth:   \t", self.mqttauth)
-        pr("\tmqttuser:    \t", self.mqttuser)
-        pr("\tmqttpsw:     \t", "**secret**")
-        # print("\tmqttpsw:     \t",self.mqttpsw)
+        pr("\tnomqtt                \t", self.nomqtt)
+        pr("\tmqttip:               \t", self.mqttip)
+        pr("\tmqttport:             \t", self.mqttport)
+        pr("\tmqtttopic:            \t", self.mqtttopic)
+        pr("\tmqttdeviceidintopic:  \t", self.mqttdeviceidintopic)
+        pr("\tmqttmtopic:           \t", self.mqttmtopic)
+        pr("\tmqttmtopicname:       \t", self.mqttmtopicname)
+        pr("\tmqtttretain:          \t", self.mqttretain)
+        pr("\tmqtttauth:            \t", self.mqttauth)
+        pr("\tmqttuser:             \t", self.mqttuser)
+        pr("\tmqttpsw:              \t", "**secret**")
+        # print("\tmqttpsw:              \t",self.mqttpsw)
 
         pr("_Growatt server:")
-        pr("\tgrowattip:   \t", self.growattip)
-        pr("\tgrowattport: \t", self.growattport)
+        pr("\tgrowattip:            \t", self.growattip)
+        pr("\tgrowattport:          \t", self.growattport)
 
         pr("_PVOutput:")
-        pr("\tpvoutput:    \t", self.pvoutput)
-        pr("\tpvdisv1:     \t", self.pvdisv1)
-        pr("\tpvtemp:      \t", self.pvtemp)
-        pr("\tpvurl:       \t", self.pvurl)
-        pr("\tpvapikey:    \t", self.pvapikey)
-        pr("\tpvinverters: \t", self.pvinverters)
+        pr("\tpvoutput:             \t", self.pvoutput)
+        pr("\tpvdisv1:              \t", self.pvdisv1)
+        pr("\tpvtemp:               \t", self.pvtemp)
+        pr("\tpvurl:                \t", self.pvurl)
+        pr("\tpvapikey:             \t", self.pvapikey)
+        pr("\tpvinverters:          \t", self.pvinverters)
         if self.pvinverters == 1:
-            pr("\tpvsystemid:  \t", self.pvsystemid[1])
+            pr("\tpvsystemid:           \t", self.pvsystemid[1])
         else:
-            pr("\tpvsystemid:  \t", self.pvsystemid)
-            pr("\tpvinvertid:  \t", self.pvinverterid)
-        pr("\tpvtimeout:   \t", self.pvtimeout)
+            pr("\tpvsystemid:           \t", self.pvsystemid)
+            pr("\tpvinvertid:           \t", self.pvinverterid)
+        pr("\tpvtimeout:            \t", self.pvtimeout)
 
         pr("_Influxdb:")
-        pr("\tinflux:      \t", self.influx)
-        pr("\turl:         \t", self.ifurl)
-        pr("\torganization:\t", self.iforg)
-        pr("\tbucket:      \t", self.ifbucket)
-        pr("\ttoken:       \t", "**secret**")
-        # print("\ttoken:       \t",self.iftoken)
+        pr("\tinflux:               \t", self.influx)
+        pr("\turl:                  \t", self.ifurl)
+        pr("\torganization:         \t", self.iforg)
+        pr("\tbucket:               \t", self.ifbucket)
+        pr("\ttoken:                \t", "**secret**")
+        # print("\ttoken:                \t",self.iftoken)
 
         pr("_Extension:")
-        pr("\textension:   \t", self.extension)
-        pr("\textname:     \t", self.extname)
-        pr("\textvar:      \t", self.extvar)
+        pr("\textension:            \t", self.extension)
+        pr("\textname:              \t", self.extname)
+        pr("\textvar:               \t", self.extvar)
 
         pr()
 
@@ -296,13 +310,13 @@ class Conf:
 
         if self.verbose:
             pr("\nGrott Command line parameters processed:")
-            pr("\tverbose:     \t", self.verbose)
-            pr("\tconfig file: \t", self.cfgfile)
-            pr("\tnomqtt:      \t", self.anomqtt)
-            pr("\tinverterid:  \t", self.inverterid)
-            pr("\tpvoutput:    \t", self.apvoutput)
-            pr("\tblockcmd:    \t", self.ablockcmd)
-            pr("\tnoipf:       \t", self.noipf)
+            pr("\tverbose:              \t", self.verbose)
+            pr("\tconfig file:          \t", self.cfgfile)
+            pr("\tnomqtt:               \t", self.anomqtt)
+            pr("\tinverterid:           \t", self.inverterid)
+            pr("\tpvoutput:             \t", self.apvoutput)
+            pr("\tblockcmd:             \t", self.ablockcmd)
+            pr("\tnoipf:                \t", self.noipf)
 
     def parserset(self):
         pr("\nGrott override settings if set in commandline")
@@ -342,7 +356,7 @@ class Conf:
 
     def procconf(self):
         pr("\nGrott process configuration file")
-        config = configparser.ConfigParser()
+        config = CustomConfigParser()
         config.read(self.cfgfile)
         if config.has_option("Generic", "minrecl"):
             self.minrecl = config.getint("Generic", "minrecl")
@@ -410,7 +424,7 @@ class Conf:
         if config.has_option("MQTT", "topic"):
             self.mqtttopic = config.get("MQTT", "topic")
         if config.has_option("MQTT", "inverterintopic"):
-            self.mqttinverterintopic = config.getboolean("MQTT", "inverterintopic")
+            self.mqttdeviceidintopic = config.getboolean("MQTT", "inverterintopic")
         if config.has_option("MQTT", "mtopic"):
             self.mqttmtopic = config.get("MQTT", "mtopic")
         if config.has_option("MQTT", "mtopicname"):
@@ -466,132 +480,6 @@ class Conf:
             self.extname = config.get("extension", "extname")
         if config.has_option("extension", "extvar"):
             self.extvar = eval(config.get("extension", "extvar"))
-
-    def getenv(self, envvar):
-        envval = os.getenv(envvar)
-
-        if self.verbose:
-            pr(f"\n\tPulled '{envvar}={envval}' from the environment")
-        return envval
-
-    def procenv(self):
-        pr("\nGrott process environmental variables")
-        if os.getenv("gmode") in ("sniff", "proxy"):
-            self.mode = self.getenv("gmode")
-        if os.getenv("gverbose") is not None:
-            self.verbose = self.getenv("gverbose")
-        if os.getenv("gminrecl") is not None:
-            if 0 <= int(os.getenv("gminrecl")) <= 255:
-                self.minrecl = int(self.getenv("gminrecl"))
-        if os.getenv("gincludeall") is not None:
-            self.includeall = self.getenv("gincludeall")
-        if os.getenv("ginvtype") is not None:
-            self.invtype = self.getenv("ginvtype")
-        if os.getenv("gblockcmd") is not None:
-            self.blockcmd = self.getenv("gblockcmd")
-        if os.getenv("gnoipf") is not None:
-            self.noipf = self.getenv("gnoipf")
-        if os.getenv("gtime") in ("auto", "server"):
-            self.gtime = self.getenv("gtime")
-        if os.getenv("gtimezone") is not None:
-            self.tmzone = self.getenv("gtimezone")
-        if os.getenv("gsendbuf") is not None:
-            self.sendbuf = self.getenv("gsendbuf")
-        if os.getenv("ginverterid") is not None:
-            self.inverterid = self.getenv("ginverterid")
-        if os.getenv("ggrottip") is not None:
-            try:
-                ipaddress.ip_address(os.getenv("ggrottip"))
-                self.grottip = self.getenv("ggrottip")
-            except ValueError:
-                if self.verbose:
-                    pr("\nGrott IP address env invalid")
-        if os.getenv("ggrottport") is not None:
-            if 0 <= int(os.getenv("ggrottport")) <= 65535:
-                self.grottport = self.getenv("ggrottport")
-        if os.getenv("ggrowattip") is not None:
-            try:
-                ipaddress.ip_address(os.getenv("ggrowattip"))
-                self.growattip = self.getenv("ggrowattip")
-            except ValueError:
-                if self.verbose:
-                    pr("\nGrott Growatt server IP address env invalid")
-        if os.getenv("ggrowattport") is not None:
-            if 0 <= int(os.getenv("ggrowattport")) <= 65535:
-                self.growattport = int(self.getenv("ggrowattport"))
-            else:
-                if self.verbose:
-                    pr("\nGrott Growatt server Port address env invalid")
-        # handle mqtt environmentals
-        if os.getenv("gnomqtt") is not None:
-            self.nomqtt = self.getenv("gnomqtt")
-        if os.getenv("gmqttip") is not None:
-            try:
-                ipaddress.ip_address(os.getenv("gmqttip"))
-                self.mqttip = self.getenv("gmqttip")
-            except ValueError:
-                if self.verbose:
-                    pr("\nGrott MQTT server IP address env invalid")
-        if os.getenv("gmqttport") is not None:
-            if 0 <= int(os.getenv("gmqttport")) <= 65535:
-                self.mqttport = int(self.getenv("gmqttport"))
-            else:
-                if self.verbose:
-                    pr("\nGrott MQTT server Port address env invalid")
-
-        if os.getenv("gmqtttopic") is not None:
-            self.mqtttopic = self.getenv("gmqtttopic")
-        if os.getenv("gmqttmtopic") is not None:
-            self.mqttmtopic = self.getenv("gmqttmtopic")
-        if os.getenv("gmqttmtopicname") is not None:
-            self.mqttmtopicname = self.getenv("gmqttmtopicname")
-        if os.getenv("gmqttretain") is not None:
-            self.mqttretain = self.getenv("gmqttretain")
-        if os.getenv("gmqttinverterintopic") is not None:
-            self.mqttinverterintopic = self.getenv("gmqttinverterintopic")
-        if os.getenv("gmqttauth") is not None:
-            self.mqttauth = self.getenv("gmqttauth")
-        if os.getenv("gmqttuser") is not None:
-            self.mqttuser = self.getenv("gmqttuser")
-        if os.getenv("gmqttpassword") is not None:
-            self.mqttpsw = self.getenv("gmqttpassword")
-        # Handle PVOutput variables
-        if os.getenv("gpvoutput") is not None:
-            self.pvoutput = self.getenv("gpvoutput")
-        if os.getenv("gpvtemp") is not None:
-            self.pvtemp = self.getenv("gpvtemp")
-        if os.getenv("gpvdisv1") is not None:
-            self.pvdisv1 = self.getenv("gpvdisv1")
-        if os.getenv("gpvapikey") is not None:
-            self.pvapikey = self.getenv("gpvapikey")
-        if os.getenv("gpvinverters") is not None:
-            self.pvinverters = int(self.getenv("gpvinverters"))
-        for x in range(self.pvinverters + 1):
-            if os.getenv("gpvsystemid" + str(x)) is not None:
-                self.pvsystemid[x] = self.getenv("gpvsystemid" + str(x))
-            if os.getenv("gpvinverterid" + str(x)) is not None:
-                self.pvinverterid[x] = self.getenv("gpvinverterid" + str(x))
-        if self.pvinverters == 1:
-            if os.getenv("gpvsystemid") is not None:
-                self.pvsystemid[1] = self.getenv("gpvsystemid")
-        # Handle Influx
-        if os.getenv("ginflux") is not None:
-            self.influx = self.getenv("ginflux")
-        if os.getenv("gifurl") is not None:
-            self.ifurl = self.getenv("gifurl")
-        if os.getenv("giforg") is not None:
-            self.iforg = self.getenv("giforg")
-        if os.getenv("gifbucket") is not None:
-            self.ifbucket = self.getenv("gifbucket")
-        if os.getenv("giftoken") is not None:
-            self.iftoken = self.getenv("giftoken")
-        # Handle Extension
-        if os.getenv("gextension") is not None:
-            self.extension = self.getenv("gextension")
-        if os.getenv("gextname") is not None:
-            self.extname = self.getenv("gextname")
-        if os.getenv("gextvar") is not None:
-            self.extvar = eval(self.getenv("gextvar"))
 
     def set_recwl(self):
         # define record that will not be blocked or inspected if blockcmd is specified

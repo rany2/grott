@@ -1,7 +1,7 @@
 """
 grottserver.py emulates the server.growatt.com website and was initial developed
 for debugging and testing grott.
-Updated: 2022-08-07
+Updated: 2022-08-26
 """
 
 import codecs
@@ -23,7 +23,7 @@ from grottdata import decrypt, format_multi_line, pr, procdata
 from grottproxy import Forward, validate_record
 
 # Version:
-verrel = "0.0.9"
+verrel = "0.0.10"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):

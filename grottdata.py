@@ -1,7 +1,7 @@
 """
 grottdata.py processing data  functions
-Version 2.7.5
-Updated: 2022-07-30
+Version 2.7.6
+Updated: 2022-08-27
 """
 
 import codecs
@@ -499,28 +499,19 @@ def procdata(conf, data):
         # as device (to distinguish record from inverter record)
 
         if device_defined:
-            jsonobj = {
-                "device": definedkey["device"],
-                "time": jsondate,
-                "buffered": buffered,
-                "values": {},
-            }
+            deviceid = definedkey["device"]
         else:
-
             if header[14:16] not in ("20", "1b"):
-                jsonobj = {
-                    "device": definedkey["pvserial"],
-                    "time": jsondate,
-                    "buffered": buffered,
-                    "values": {},
-                }
+                deviceid = definedkey["pvserial"]
             else:
-                jsonobj = {
-                    "device": definedkey["datalogserial"],
-                    "time": jsondate,
-                    "buffered": buffered,
-                    "values": {},
-                }
+                deviceid = definedkey["datalogserial"]
+
+        jsonobj = {
+            "device": deviceid,
+            "time": jsondate,
+            "buffered": buffered,
+            "values": {},
+        }
 
         for key, value in definedkey.items():
             jsonobj["values"][key] = value
@@ -543,15 +534,11 @@ def procdata(conf, data):
             # if meter data use mqtttopicname topic
             if (header[14:16] in ("20", "1b")) and conf.mqttmtopic:
                 mqtttopic = conf.mqttmtopicname
-                if conf.mqttinverterintopic:
-                    mqtttopic = f'{conf.mqtttopic}/{definedkey["datalogserial"]}'
             else:
                 mqtttopic = conf.mqtttopic
-                if conf.mqttinverterintopic:
-                    if device_defined:
-                        mqtttopic = f'{conf.mqtttopic}/{definedkey["device"]}'
-                    else:
-                        mqtttopic = f'{conf.mqtttopic}/{definedkey["pvserial"]}'
+
+            if conf.mqttdeviceidintopic:
+                mqtttopic += f"/{deviceid}"
 
             pr("- Grott MQTT topic used: " + mqtttopic)
 
