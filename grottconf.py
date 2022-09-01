@@ -18,8 +18,7 @@ from grottdata import pr, str2bool
 
 
 def get_option_environ(option):
-    if value := os.getenv(f"g{option}"):
-        return value
+    return os.getenv(f"g{option}")
 
 
 class CustomConfigParser(ConfigParser):
@@ -80,7 +79,7 @@ class Conf:
         self.httptimeout = 10.0
         self.forwardretry = 1
         self.forwardtimeout = 2.0
-        self.write_delay_ms = 100
+        self.write_delay_ms = 400
 
         # Growatt server default
         self.growattip = "47.91.67.66"
