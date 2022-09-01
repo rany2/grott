@@ -303,13 +303,13 @@ class Conf:
         if config.has_option_store_confname("Generic", "inverterid"):
             self.inverterid = config.get("Generic", "inverterid")
         if config.has_option_store_confname("Generic", "blockcmd"):
-            self.blockcmd = config.get("Generic", "blockcmd")
+            self.blockcmd = config.getboolean("Generic", "blockcmd")
         if config.has_option_store_confname("Generic", "noipf"):
-            self.noipf = config.get("Generic", "noipf")
+            self.noipf = config.getboolean("Generic", "noipf")
         if config.has_option_store_confname("Generic", "time", "gtime"):
             self.gtime = config.get("Generic", "time")
         if config.has_option_store_confname("Generic", "sendbuf"):
-            self.sendbuf = config.get("Generic", "sendbuf")
+            self.sendbuf = config.getboolean("Generic", "sendbuf")
         if config.has_option_store_confname("Generic", "timezone", "tmzone"):
             self.tmzone = config.get("Generic", "timezone")
         if config.has_option_store_confname("Generic", "mode"):
@@ -352,7 +352,7 @@ class Conf:
             self.write_delay_ms = config.getfloat("Server", "write_delay_ms")
 
         if config.has_option_store_confname("MQTT", "nomqtt"):
-            self.nomqtt = config.get("MQTT", "nomqtt")
+            self.nomqtt = config.getboolean("MQTT", "nomqtt")
         if config.has_option_store_confname("MQTT", "ip", "mqttip"):
             self.mqttip = config.get("MQTT", "ip")
         if config.has_option_store_confname("MQTT", "port", "mqttport"):
@@ -364,7 +364,7 @@ class Conf:
         ):
             self.mqttdeviceidintopic = config.getboolean("MQTT", "deviceidintopic")
         if config.has_option_store_confname("MQTT", "mtopic", "mqttmtopic"):
-            self.mqttmtopic = config.get("MQTT", "mtopic")
+            self.mqttmtopic = config.getboolean("MQTT", "mtopic")
         if config.has_option_store_confname("MQTT", "mtopicname", "mqttmtopicname"):
             self.mqttmtopicname = config.get("MQTT", "mtopicname")
         if config.has_option_store_confname("MQTT", "retain", "mqttretain"):
@@ -377,11 +377,11 @@ class Conf:
             self.mqttpsw = config.get("MQTT", "password")
 
         if config.has_option_store_confname("PVOutput", "pvoutput"):
-            self.pvoutput = config.get("PVOutput", "pvoutput")
+            self.pvoutput = config.getboolean("PVOutput", "pvoutput")
         if config.has_option_store_confname("PVOutput", "pvtemp"):
-            self.pvtemp = config.get("PVOutput", "pvtemp")
+            self.pvtemp = config.getboolean("PVOutput", "pvtemp")
         if config.has_option_store_confname("PVOutput", "pvdisv1"):
-            self.pvdisv1 = config.get("PVOutput", "pvdisv1")
+            self.pvdisv1 = config.getboolean("PVOutput", "pvdisv1")
         if config.has_option_store_confname("PVOutput", "pvinverters"):
             self.pvinverters = config.getint("PVOutput", "pvinverters")
         if config.has_option_store_confname("PVOutput", "apikey", "pvapikey"):
@@ -410,7 +410,7 @@ class Conf:
 
         # INFLUX
         if config.has_option_store_confname("influx", "influx"):
-            self.influx = config.get("influx", "influx")
+            self.influx = config.getboolean("influx", "influx")
         if config.has_option_store_confname("influx", "url", "ifurl"):
             self.ifurl = config.get("influx", "url")
         if config.has_option_store_confname("influx", "org", "iforg"):
@@ -422,7 +422,7 @@ class Conf:
 
         # extension
         if config.has_option_store_confname("extension", "extension"):
-            self.extension = config.get("extension", "extension")
+            self.extension = config.getboolean("extension", "extension")
         if config.has_option_store_confname("extension", "extname"):
             self.extname = config.get("extension", "extname")
         if config.has_option_store_confname("extension", "extvar"):
