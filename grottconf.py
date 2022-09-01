@@ -79,7 +79,7 @@ class Conf:
         self.httptimeout = 10.0
         self.forwardretry = 1
         self.forwardtimeout = 2.0
-        self.write_delay_ms = 400
+        self.write_delay_ms = 100
 
         # Growatt server default
         self.growattip = "47.91.67.66"
@@ -400,9 +400,7 @@ class Conf:
             ):
                 self.pvinverterid[x] = config.get("PVOutput", f"inverterid{x}")
         if self.pvinverters == 1:
-            if config.has_option_store_confname(
-                "PVOutput", "systemid", "pvsystemid1"
-            ):
+            if config.has_option_store_confname("PVOutput", "systemid", "pvsystemid1"):
                 self.pvsystemid[1] = config.get("PVOutput", "systemid")
         if config.has_option_store_confname("PVOutput", "pvtimeout"):
             self.pvtimeout = config.getfloat("PVOutput", "pvtimeout")
