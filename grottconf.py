@@ -1,7 +1,7 @@
 """
 grottconf  process command parameter and settings file
-Updated: 2022-05-17
-Version 2.7.3
+Updated: 2022-08-26
+Version 2.7.6
 """
 
 import argparse
