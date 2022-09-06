@@ -65,7 +65,7 @@ class Forward:
 
             return self.forward
         except Exception as e:
-            pr(f"- Grott - grottproxy forward error: {e}")
+            pr(f"- Grottproxy - Forward error: {e}")
             return False
 
 
@@ -207,7 +207,7 @@ class GrottProxyHandler(StreamRequestHandler):
         vdata = "".join(f"{n:02x}" for n in data)
         validatecc = validate_record(vdata)
         if validatecc != 0:
-            pr("- Grott - grottproxy - Invalid data record received, not processing")
+            pr("- Grottproxy - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)
             return
