@@ -79,7 +79,6 @@ class Conf:
         self.minrecl = 100
         self.invtype = "default"  # specify sepcial invertype default (spf, sph)
         self.includeall = False  # Include all defined keys from layout (also incl = no)
-        self.blockcmd = False  # Block Inverter and Shine configure commands
         self.noipf = False  # Allow IP change if needed
         self.gtime = "auto"  # time used =  auto: use record time or if not valid server time, alternative server: use always server time
         self.sendbuf = True  # enable / disable sending historical data from buffer
@@ -169,9 +168,6 @@ class Conf:
         # define recordlayouts
         self.set_reclayouts()
 
-        # define record whitlist (if blocking / filtering enabled
-        self.set_recwl()
-
         # prepare influxDB
         if self.influx:
             if self.verbose:
@@ -255,12 +251,6 @@ class Conf:
             action="store_true",
         )
         parser.add_argument(
-            "-b",
-            "--blockcmd",
-            help="block Growatt configure commands",
-            action="store_true",
-        )
-        parser.add_argument(
             "-n",
             "--noipf",
             help="Allow IP change from growatt website",
@@ -275,7 +265,6 @@ class Conf:
         self.anomqtt = args.nomqtt
         self.apvoutput = args.pvoutput
         self.trace = args.trace
-        self.ablockcmd = args.blockcmd
         self.anoipf = args.noipf
 
         if args.m is not None:
@@ -291,15 +280,12 @@ class Conf:
             pr("\tnomqtt:               \t", self.anomqtt)
             pr("\tinverterid:           \t", self.inverterid)
             pr("\tpvoutput:             \t", self.apvoutput)
-            pr("\tblockcmd:             \t", self.ablockcmd)
             pr("\tnoipf:                \t", self.noipf)
 
     def parserset(self):
         pr("\nGrott override settings if set in commandline")
         if hasattr(self, "amode"):
             self.mode = self.amode
-        if hasattr(self, "ablockcmd") and self.ablockcmd:
-            self.blockcmd = self.ablockcmd
         if hasattr(self, "anoipf") and self.anoipf:
             self.noipf = self.anoipf
         if hasattr(self, "ainverterid"):
@@ -324,8 +310,6 @@ class Conf:
             self.invtype = config.get("Generic", "invtype")
         if config.has_option_store_confname("Generic", "inverterid"):
             self.inverterid = config.get("Generic", "inverterid")
-        if config.has_option_store_confname("Generic", "blockcmd"):
-            self.blockcmd = config.getboolean("Generic", "blockcmd")
         if config.has_option_store_confname("Generic", "noipf"):
             self.noipf = config.getboolean("Generic", "noipf")
         if config.has_option_store_confname("Generic", "time", "gtime"):
@@ -496,47 +480,6 @@ class Conf:
             self.extname = config.get("extension", "extname")
         if config.has_option_store_confname("extension", "extvar"):
             self.extvar = eval(config.get("extension", "extvar"))
-
-    def set_recwl(self):
-        # define record that will not be blocked or inspected if blockcmd is specified
-        self.recwl = {
-            "0103",  # announce record
-            "0104",  # data record
-            "0116",  # ping
-            "0105",  # identify/display inverter config
-            "0119",  # identify/display datalogger config
-            "0120",  # Smart Monitor Record
-            "0150",  # Archived record
-            "5003",  # announce record
-            "5004",  # data record
-            "5016",  # ping
-            "5005",  # identify/display inverter config
-            "5019",  # identify/display datalogger config
-            "501b",  # SDM630 with Raillog
-            "5050",  # Archived record
-            "5103",  # announce record
-            "5104",  # data record
-            "5116",  # ping
-            "5105",  # identify/display inverter config
-            "5119",  # identify/display datalogger config
-            "5129",  # announce record
-            "5150",  # Archived record
-            "5216",  # ping
-            "5219",  # identify/display datalogger config
-            "5229",  # announce record
-            "5250",  # Archived record
-        }
-
-        try:
-            with open("recwl.txt", "r", encoding="utf-8") as f:
-                self.recwl = f.read().splitlines()
-            if self.verbose:
-                pr("\nGrott external record whitelist: 'recwl.txt' read")
-        except FileNotFoundError:
-            if self.verbose:
-                pr("\nGrott external record whitelist 'recwl.txt' not found")
-        if self.verbose:
-            pr("\nGrott records whitelisted : ", self.recwl)
 
     def set_reclayouts(self):
         # define record layout to be used based on byte 4,6,7 of the header T+byte4+byte6+byte7

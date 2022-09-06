@@ -133,8 +133,6 @@ Specify pvoutput = True and apikey and systemid in .ini file to enable it.
 #### Docker support 
 2 docker containers are created ledidobe/grottrpi (specific old RPI with ARM32) and ledidobe/grott (generic one, tested on synology NAS and Ubuntu). See https://hub.docker.com/search?q=ledidobe&type=image. 
 See issue 4 and 15 on how to use it (wiki will be updated soon)
-#### Command Blocking / Filtering
-with blockcmd = True specified in .ini (configure/reboot) commands from outside to the inverter are blocked. This protects the inverter from beeing controlled from the outside while data exchange with server.growatt.com for reporting is still active.  
 #### Use date/time from data record
 If date/time is available in the data (inserted by the inverter) this will be used. In this way buffered records will be sent with the original  creation time (in the past). 
 If date/time is not available in the data record the server time will be used (as it was originally). 

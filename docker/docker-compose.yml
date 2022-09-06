@@ -12,7 +12,6 @@ services:
             #- /opt/grott/grottstub.ini:/app/grott.ini
             #- /opt/grott/grottstub.py:/app/grottext.py
         environment:
-            - gblockcmd=False 
             - gnomqtt=False
             - gmqttip=localhost
             - gmqttauth=False

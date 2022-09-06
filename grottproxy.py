@@ -212,62 +212,6 @@ class GrottProxyHandler(StreamRequestHandler):
             # self.send_queuereg[qname].put(response)
             return
 
-        # FILTER!!!!!!!! Detect if configure data is sent!
-        header = "".join(f"{n:02x}" for n in data[0:8])
-        if self.conf.blockcmd:
-            # standard everything is blocked!
-            pr("- Growatt command block checking started")
-            blockflag = True
-            # partly block configure Shine commands
-            if header[14:16] == "18":
-                if self.conf.blockcmd:
-                    if header[6:8] == "05" or header[6:8] == "06":
-                        confdata = decrypt(data)
-                    else:
-                        confdata = data
-
-                    # get conf command (location depends on record type), maybe later more flexibility is needed
-                    if header[6:8] == "06":
-                        confcmd = confdata[76:80]
-                    else:
-                        confcmd = confdata[36:40]
-
-                    if header[14:16] == "18":
-                        # do not block if configure time command of configure IP (if noipf flag set)
-                        if self.verbose:
-                            pr("- Grott: Shine Configure command detected")
-                        if confcmd == "001f" or (confcmd == "0011" and self.conf.noipf):
-                            blockflag = False
-                            if confcmd == "001f":
-                                confcmd = "Time"
-                            if confcmd == "0011":
-                                confcmd = "Change IP"
-                            if self.verbose:
-                                pr(
-                                    "- Grott: Configure command not blocked : ",
-                                    confcmd,
-                                )
-                    else:
-                        # All configure inverter commands will be blocked
-                        if self.verbose:
-                            pr("- Grott: Inverter Configure command detected")
-
-            # allow records:
-            if header[12:16] in self.conf.recwl:
-                blockflag = False
-
-            if blockflag:
-                if header[6:8] == "05" or header[6:8] == "06":
-                    blockeddata = decrypt(data)
-                else:
-                    blockeddata = data
-                pr(
-                    f"- Grott: Record blocked: {header[12:16]}"
-                    + "\n"
-                    + format_multi_line("\t", blockeddata),
-                )
-                return
-
         # send data to destination
         for q in queues:
             q.put_nowait(data)
