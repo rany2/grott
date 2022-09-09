@@ -257,6 +257,31 @@ def procdata(conf, data):
     # define dictonary for key values.
     definedkey = {}
 
+    if conf.invtype == "default":
+        # Handle systems with mixed invtype
+        if ndata > 50:
+            # There is enough data for an inverter serial number
+            inverter_type = "default"
+
+            inverter_serial = result_string[76:96]
+            inverter_serial = codecs.decode(inverter_serial, "hex").decode("utf-8")
+            if conf.verbose:
+                pr("\t - Possible Inverter serial", inverter_serial)
+
+            # Lookup inverter type based on inverter serial
+            try:
+                inverter_type = conf.invtypemap[inverter_serial]
+                pr("\t - Matched inverter serial to inverter type", inverter_type)
+            except KeyError:
+                inverter_type = "default"
+                pr(
+                    "\t - Inverter serial not recognised - using inverter type",
+                    inverter_type,
+                )
+
+            if inverter_type != "default":
+                layout = layout + inverter_type.upper()
+
     # layout processing
     if conf.verbose:
         pr(

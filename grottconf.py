@@ -77,6 +77,7 @@ class Conf:
         self.cfgfile = "grott.ini"
         self.minrecl = 100
         self.invtype = "default"  # specify sepcial invertype default (spf, sph)
+        self.invtypemap = {}
         self.includeall = False  # Include all defined keys from layout (also incl = no)
         self.noipf = False  # Allow IP change if needed
         self.gtime = "auto"  # time used =  auto: use record time or if not valid server time, alternative server: use always server time
@@ -307,6 +308,8 @@ class Conf:
             self.includeall = config.getboolean("Generic", "includeall")
         if config.has_option_store_confname("Generic", "invtype"):
             self.invtype = config.get("Generic", "invtype")
+        if config.has_option_store_confname("Generic", "invtypemap"):
+            self.invtypemap = eval(config.get("Generic", "invtypemap"))
         if config.has_option_store_confname("Generic", "inverterid"):
             self.inverterid = config.get("Generic", "inverterid")
         if config.has_option_store_confname("Generic", "noipf"):
