@@ -52,12 +52,16 @@ class ModbusTcp:
         self._data = data
 
     def get_header(self) -> Dict[str, int]:
+        try:
+            func = ModbusFuncType(self._header["func"])
+        except ValueError:
+            func = self._header["func"]
         return {
             "trans": self._header["trans"],
             "proto": self._header["proto"],
             "len": self._header["len"],
             "unit": self._header["unit"],
-            "func": ModbusFuncType(self._header["func"]),
+            "func": func,
         }
 
     def get_data_len(self) -> int:
