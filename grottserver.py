@@ -307,7 +307,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if command == "register":
                 # test if valid reg is applied
                 try:
-                    if 0 <= int(urlquery["register"][0]) < 1024:
+                    if 0 <= int(urlquery["register"][0]) <= 2**16 - 1:
                         register = urlquery["register"][0]
                     else:
                         raise ValueError("invalid register value")
@@ -486,7 +486,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if command == "register":
                 # test if valid reg is applied
                 try:
-                    if 0 <= int(urlquery["register"][0]) < 1024:
+                    if 0 <= int(urlquery["register"][0]) <= 2**16 - 1:
                         register = urlquery["register"][0]
                     else:
                         raise ValueError("invalid register value")
