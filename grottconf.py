@@ -412,7 +412,7 @@ class Conf:
             "MQTT", "auth", "mqttauth", environ_key="mqttauth"
         ):
             self.mqttauth = config.getboolean(
-                "MQTT", "auth", "mqttauth", environ_key="mqttauth"
+                "MQTT", "auth", environ_key="mqttauth"
             )
         if config.has_option_store_confname(
             "MQTT", "user", "mqttuser", environ_key="mqttuser"
