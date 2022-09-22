@@ -11,8 +11,7 @@ import os
 from collections import defaultdict
 
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.write_api import \
-    ASYNCHRONOUS as INFLUXDB_ASYNCHRONOUS
+from influxdb_client.client.write_api import ASYNCHRONOUS as INFLUXDB_ASYNCHRONOUS
 
 from grottdata import pr, str2bool
 
