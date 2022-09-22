@@ -411,9 +411,7 @@ class Conf:
         if config.has_option_store_confname(
             "MQTT", "auth", "mqttauth", environ_key="mqttauth"
         ):
-            self.mqttauth = config.getboolean(
-                "MQTT", "auth", environ_key="mqttauth"
-            )
+            self.mqttauth = config.getboolean("MQTT", "auth", environ_key="mqttauth")
         if config.has_option_store_confname(
             "MQTT", "user", "mqttuser", environ_key="mqttuser"
         ):
@@ -432,7 +430,7 @@ class Conf:
         if config.has_option_store_confname("PVOutput", "pvinverters"):
             self.pvinverters = config.getint("PVOutput", "pvinverters")
         if config.has_option_store_confname("PVOutput", "apikey", "pvapikey"):
-            self.pvapikey = config.get("PVOutput", "apikey")
+            self.pvapikey = config.get("PVOutput", "apikey", environ_key="pvapikey")
         # if more inverter are installed at the same interface (shinelink) get systemids
         # if self.pvinverters > 1 :
         for x in range(self.pvinverters + 1):

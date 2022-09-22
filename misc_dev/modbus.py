@@ -41,9 +41,9 @@ class ModbusTcp:
         elif not isinstance(value, int):
             raise TypeError("value needs to be an int")
 
-        if key not in ("unit", "func") and not 0 <= value <= 2 ** 16 - 1:
+        if key not in ("unit", "func") and not 0 <= value <= 2**16 - 1:
             raise ValueError("value needs to be in 0 <= v <= 2**16-1")
-        elif key in ("unit", "func") and not 0 <= value <= 2 ** 8 - 1:
+        elif key in ("unit", "func") and not 0 <= value <= 2**8 - 1:
             raise ValueError("value needs to be in 0 <= v <= 2**8-1")
 
         self._header[key] = value
