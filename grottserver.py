@@ -1,7 +1,7 @@
 """
 grottserver.py emulates the server.growatt.com website and was initial developed
 for debugging and testing grott.
-Updated: 2022-08-26
+Updated: 2022-09-26
 """
 
 import codecs
@@ -967,7 +967,7 @@ class GrottServerHandler(StreamRequestHandler):
 
                 loggerid = result_string[16:36]
                 loggerid = codecs.decode(loggerid, "hex").decode("ascii")
-                if header[12:14] in ("02", "05"):
+                if header[6:8] in ("02", "05"):
                     inverterid = result_string[36:56]
                 else:
                     inverterid = result_string[76:96]
