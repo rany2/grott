@@ -24,7 +24,7 @@ from grottdata import decrypt, format_multi_line, pr, procdata
 from grottproxy import Forward, validate_record
 
 # Version:
-verrel = "0.0.10"
+verrel = "0.0.11"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
