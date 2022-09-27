@@ -1,7 +1,7 @@
 """
 grottserver.py emulates the server.growatt.com website and was initial developed
 for debugging and testing grott.
-Updated: 2022-09-26
+Updated: 2022-09-27
 """
 
 import codecs
@@ -24,7 +24,7 @@ from grottdata import decrypt, format_multi_line, pr, procdata
 from grottproxy import Forward, validate_record
 
 # Version:
-verrel = "0.0.11"
+verrel = "0.0.11a"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
@@ -275,7 +275,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 command = urlquery["command"][0]
                 if command in ("register", "regall"):
                     if self.verbose:
-                        pr("- Grott: get command:", command)
+                        pr("- Grott - get command:", command)
                 else:
                     # no valid command entered
                     responsetxt = b"no valid command entered\r\n"
@@ -343,12 +343,22 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
             bodylen = int(len(body) / 2 + 2)
 
+            # device id for datalogger is by default "01" for inverter deviceid is inverterid!
+            deviceid = "01"
+            # test if it is inverter command and set
+            if sendcommand == "05":
+                deviceid = self.loggerreg[dataloggerid][urlquery["inverter"][0]][
+                    "inverterno"
+                ]
+                if self.verbose:
+                    pr(f"- Grotthttpserver - selected deviceid: {deviceid}")
+
             header = (
                 f"{self.conf.sendseq:04x}"
                 + "00"
                 + self.loggerreg[dataloggerid]["protocol"]
                 + f"{bodylen:04x}"
-                + "01"
+                + deviceid
                 + sendcommand
             )
             body = header + body
@@ -363,7 +373,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # add header
             if self.verbose:
                 pr(
-                    "- Grotthttpserver: command created:\n"
+                    "- Grotthttpserver - command created:\n"
                     + format_multi_line("\t", body)
                 )
 
@@ -636,7 +646,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 responseheader = "text/plain"
                 if self.verbose:
                     pr(
-                        "- Grott: datalogger command response:",
+                        "- Grott - datalogger command response:",
                         responserc,
                         responsetxt,
                         responseheader,
