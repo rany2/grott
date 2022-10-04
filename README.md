@@ -1,25 +1,23 @@
 ### New in Version 2.7  (Beta)
 * Added first beta of grottserver to act as destination for inverter/datalogger data (remove need to cummunicate with internet).
   - grottserver version 0.0.5 is able to sent read/write register commands to inverter and datalogger.
-  - see discussions (#98) for more information: https://github.com/johanmeijer/grott/discussions/98
-* Support for SDM630/Raillog connected (see issue #88)
+  - see discussion https://github.com/johanmeijer/grott/discussions/98 for more information
+* Support for SDM630/Raillog connected (see issue https://github.com/johanmeijer/grott/issues/88)
 * Support for SDM630/Inverter (modbus) connected 3 phases support
-* Export to CSV file (see issue #79, pull request #91). 
+* Export to CSV file (see issue https://github.com/johanmeijer/grott/issues/79, pull request https://github.com/johanmeijer/grott/pull/91). 
   - Also avaialble in 2.6.1 (master) 
   - More information can be found in the wiki: https://github.com/johanmeijer/grott/wiki/Extensions
-* Add parameter to enable message retain in MQTT (#84)
+* Add parameter to enable message retain in MQTT (https://github.com/johanmeijer/grott/issues/84)
   - .ini [MQTT section] retain = True
   - environmental gmqttretain = "True" (docker: -e gmqttretain = "True") 
-* Add parameter to enable sent inverter temperature as temperature value to pvoutput (not advised PVOutemp should be outside temperature) Issue #60
+* Add parameter to enable sent inverter temperature as temperature value to pvoutput (not advised PVOutemp should be outside temperature) Issue https://github.com/johanmeijer/grott/issues/60
   - .ini [PVOutput section] pvtemp = True
   - environmental gpvtemp = "True" (docker: -e gpvtemp = "True")
-* Add parameter to disable sending energytoday to pvoutput (disable V1 input). This should show better avarages. Issue: #52  
+* Add parameter to disable sending energytoday to pvoutput (disable V1 input). This should show better avarages. Issue: https://github.com/johanmeijer/grott/issues/52  
   - .ini [PVOutput section] pvdisv1 = True
   - environmental gpvdisv1 = "True" (docker: -e gpvdisv1 = "True")  
-* Add support for  SPH5000 T05nnnnXSPH data record
-* Add record validation to eliminate incomplete/corrupted records (for both Grott and Grottserver), see also issue #135
-  - To enable CRC checking for Grott an additional python library is needed (sudo pip3 install libscrc)
-  - Without libscrc only validation on length will be performed.
+* Add support for SPH5000 T05nnnnXSPH data record
+* Add record validation to eliminate incomplete/corrupted records (for both Grott and Grottserver), see also issue https://github.com/johanmeijer/grott/issues/135
   - No CRC checking is being done for older converter types (length validation is always performed).
 * Added option to add inverter serial to MQTT topic (thanks to @ebosveld)
   - Add mqttinverterintopic = True to MQTT section of grott.ini or use  qmqttinverterintopic = "True" environmental (e.g. docker).
@@ -32,8 +30,6 @@
 * tbd
 
 ## The Growatt Inverter Monitor 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate?business=RQFS46F9JTESQ&item_name=Grott+&currency_code=EUR)
-
 Growatt inverters can send performance and status metrics (log data) to the Growatt company servers. The inverters rely on either a ShineWIFI module or a ShineLAN box to relay the data to Growatt. The metrics stored on the Growatt servers then can be viewed on the Growatt website or using the ShinePhone mobile app. 
 
 The purpose of Grott is to read, parse and forward the *raw metrics as they are sent* to Growatt servers. This means other applications can consume the raw Growatt metrics without relying on the Growatt API and servers and without delay. 
@@ -48,7 +44,7 @@ Grott can intercept the inverter metrics in two distinct modes:
 ### Where Grott can forward metric data to
 Grott can forward the parsed metrics to: 
 * MQTT (suggested option for many home automation systems such as Home Assistant, OpenHAB and Domoticz)
-* InfluxDB v1 and v2 (a time series database with dashboarding functionality) 
+* InfluxDB v2 (a time series database with dashboarding functionality) 
 * PVOutput.org (a service for sharing and comparing PV output data)
 * Custom output using the extension functionality (Examples available for Export to CSV files and writing to a Http Server).
 
@@ -84,15 +80,15 @@ Please see the [Wiki](https://github.com/johanmeijer/grott/wiki) for further inf
 ## What's new
 ### New in Version 2.6.1  (Master)
 #### TL3-X 3 phase inverter support 
-see issue #81/#82/#85: add invtype=tl3 in grott.ini [Generic] section (or use ginvtype="tl3" environmental variable e.g. for docker ledidome/grott:2.6.1f)
+see issue https://github.com/johanmeijer/grott/issues/81/https://github.com/johanmeijer/grott/issues/82/https://github.com/johanmeijer/grott/issues/85: add invtype=tl3 in grott.ini [Generic] section (or use ginvtype="tl3" environmental variable e.g. for docker ledidome/grott:2.6.1f)
 #### SPF off grid inverter support 
-see issue #42/#46: add invtype=spf in grott.ini [Generic] section (or use ginvtype=spf environmental variable e.g. for docker)
+see issue https://github.com/johanmeijer/grott/issues/42/https://github.com/johanmeijer/grott/issues/46: add invtype=spf in grott.ini [Generic] section (or use ginvtype=spf environmental variable e.g. for docker)
 #### SPH hybrid (grid/battery) support 
-see issue #34: add invtype=sph in grott.ini [Generic] section (or use ginvtype=sph environmental variable e.g. for docker)
+see issue https://github.com/johanmeijer/grott/issues/34: add invtype=sph in grott.ini [Generic] section (or use ginvtype=sph environmental variable e.g. for docker)
 #### Growatt Smart Meter support
-see issue #47: data will be processed automatically and send to MQTT, InfluxDB and PVOutput.org
+see issue https://github.com/johanmeijer/grott/issues/47: data will be processed automatically and send to MQTT, InfluxDB and PVOutput.org
 #### Export to CSV file
-see issue #79, pull request #91. More information can be found in the wiki: https://github.com/johanmeijer/grott/wiki/Extensions
+see issue https://github.com/johanmeijer/grott/issues/79, pull request https://github.com/johanmeijer/grott/pull/91. More information can be found in the wiki: https://github.com/johanmeijer/grott/wiki/Extensions
 
 ### New in Version 2.5.x  
 Improved dynamic data processing  and dynamic generation of output allowing: 
