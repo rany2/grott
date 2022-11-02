@@ -132,6 +132,7 @@ class Conf:
         self.pvdisv1 = False
         self.pvtemp = False
         self.pvtimeout = 2.5
+        self.pvuplimit = 5
 
         # influxdb default
         self.influx = False
@@ -433,6 +434,8 @@ class Conf:
             self.pvinverters = config.getint("PVOutput", "pvinverters")
         if config.has_option_store_confname("PVOutput", "apikey", "pvapikey"):
             self.pvapikey = config.get("PVOutput", "apikey", environ_key="pvapikey")
+        if config.has_option_store_confname("PVOutput", "pvuplimit"):
+            self.pvuplimit = config.getint("PVOutput", "pvuplimit")
         # if more inverter are installed at the same interface (shinelink) get systemids
         # if self.pvinverters > 1 :
         for x in range(self.pvinverters + 1):

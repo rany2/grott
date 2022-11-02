@@ -14,10 +14,40 @@ import traceback
 from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import cycle
+from typing import Dict
 
 import pytz
 import requests
 from paho.mqtt import publish
+
+
+class GrottPvOutLimit:
+    def __init__(self):
+        self.register: Dict[str, int] = {}
+
+    def ok_send(self, pvserial: str, conf) -> bool:
+        now = time.time()
+        ok = False
+        if self.register.get(pvserial):
+            ok = (
+                True
+                if self.register.get(pvserial) + conf.pvuplimit * 60 < now
+                else False
+            )
+            if ok is True:
+                self.register[pvserial] = int(now)
+            else:
+                if conf.verbose:
+                    print(
+                        f"\t - PVOut: Update refused for {pvserial} due to time limitation"
+                    )
+        else:
+            self.register.update({pvserial: int(now)})
+            ok = True
+        return ok
+
+
+pvout_limit = GrottPvOutLimit()
 
 
 def pr(*args, **kwargs):
@@ -85,6 +115,9 @@ def pvoutput_send(*, conf, header, definedkey, jsondate):
                 "- pvsystemid not found for inverter : ",
                 definedkey["pvserial"],
             )
+        return
+    if not pvout_limit.ok_send(definedkey["pvserial"], conf):
+        # Will print a line for the refusal in verbose mode (see GrottPvOutLimit at the top)
         return
     if conf.verbose:
         pr(
