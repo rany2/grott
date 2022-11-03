@@ -521,6 +521,15 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     return
 
             elif command == "multiregister":
+                if sendcommand == "18":
+                    responsetxt = (
+                        b"multiregister command not allowed for datalogger\r\n"
+                    )
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+
                 # Switch to multiregister command
                 sendcommand = "10"
 
