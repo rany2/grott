@@ -497,7 +497,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if command == "register":
                 # test if valid reg is applied
                 try:
-                    if 0 <= int(urlquery["register"][0]) <= 2**16 - 1:
+                    if 0 <= int(urlquery["register"][0]) < 1125:
                         register = urlquery["register"][0]
                     else:
                         raise ValueError("invalid register value")
@@ -520,61 +520,48 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
 
-                elif command == "multiregister":
-                    # Switch to multiregister command
-                    sendcommand = "10"
+            elif command == "multiregister":
+                # Switch to multiregister command
+                sendcommand = "10"
 
-                    # TODO: Too much copy/paste here. Refactor into methods.
+                # Check for valid start register
+                try:
+                    if 0 <= int(urlquery["startregister"][0]) < 1125:
+                        startregister = urlquery["startregister"][0]
+                    else:
+                        raise ValueError("invalid register value")
+                except (KeyError, IndexError, ValueError):
+                    responsetxt = b"invalid start register value specified\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
-                    # Check for valid start register
-                    try:
-                        if (
-                            int(urlquery["startregister"][0]) >= 0
-                            and int(urlquery["startregister"][0]) < 1125
-                        ):
-                            startregister = urlquery["startregister"][0]
-                        else:
-                            raise ValueError("invalid register value")
-                    except (KeyError, IndexError, ValueError):
-                        responsetxt = b"invalid start register value specified\r\n"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
+                # Check for valid end register
+                try:
+                    if 0 <= int(urlquery["endregister"][0]) < 1125:
+                        endregister = urlquery["endregister"][0]
+                    else:
+                        raise ValueError("invalid register value")
+                except (KeyError, IndexError, ValueError):
+                    responsetxt = b"invalid end register value specified\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
-                    # Check for valid end register
-                    try:
-                        if (
-                            int(urlquery["endregister"][0]) >= 0
-                            and int(urlquery["endregister"][0]) < 1125
-                        ):
-                            endregister = urlquery["endregister"][0]
-                        else:
-                            raise ValueError("invalid register value")
-                    except (KeyError, IndexError, ValueError):
-                        responsetxt = b"invalid end register value specified\r\n"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
+                # TODO: Check the value is the right length for the given start/end registers
+                try:
+                    value = urlquery["value"][0]
+                except (KeyError, IndexError):
+                    value = None
 
-                    try:
-                        value = urlquery["value"][0]
-                    except (KeyError, IndexError):
-                        responsetxt = b"no value specified"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                    if value == "":
-                        responsetxt = b"no value specified"
-                        responserc = 400
-                        responseheader = "text/plain"
-                        htmlsendresp(self, responserc, responseheader, responsetxt)
-                        return
-
-                    # TODO: Check the value is the right length for the given start/end registers
+                if value is None:
+                    responsetxt = b"no value specified\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
             elif command == "datetime":
                 # process set datetime, only allowed for datalogger!!!

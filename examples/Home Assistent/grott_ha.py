@@ -4,9 +4,10 @@
 import json
 from datetime import datetime, timezone
 
+from paho.mqtt.client import Client
+
 from grottconf import Conf
 from grottdata import pr
-from paho.mqtt.client import Client
 
 """A pluging for grott
 This plugin allow to have autodiscovery of the device in HA
