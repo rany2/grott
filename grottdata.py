@@ -26,7 +26,7 @@ class GrottPvOutLimit:
         self.register: Dict[str, int] = {}
 
     def ok_send(self, pvserial: str, conf) -> bool:
-        now = time.time()
+        now = time.perf_counter()
         ok = False
         if self.register.get(pvserial):
             ok = (
@@ -34,7 +34,7 @@ class GrottPvOutLimit:
                 if self.register.get(pvserial) + conf.pvuplimit * 60 < now
                 else False
             )
-            if ok is True:
+            if ok:
                 self.register[pvserial] = int(now)
             else:
                 if conf.verbose:
