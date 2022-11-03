@@ -20,10 +20,10 @@ def grottext(conf, data, jsonmsg):
         ### uncomment this print statements if you want to see the information that is availble.
         ###
 
-        # print(jsonmsg)
-        # print(data)
-        # print(dir(conf))
-        # print(conf.extvar)
+        # pr(jsonmsg)
+        # pr(data)
+        # pr(dir(conf))
+        # pr(conf.extvar)
 
     url = "http://" + conf.extvar["ip"] + ":" + str(conf.extvar["port"])
 
@@ -35,5 +35,5 @@ def grottext(conf, data, jsonmsg):
         resultcode = e
         return resultcode
 
-    # print(r.text)
+    # pr(r.text)
     return resultcode

@@ -31,10 +31,10 @@ def grottext(conf, data, jsonmsg):
         ### uncomment this print statements if you want to see the information that is availble.
         ###
 
-        # print(jsonmsg)
-        # print(data)
-        # print(dir(conf))
-        # print(conf.extvar)
+        # pr(jsonmsg)
+        # pr(data)
+        # pr(dir(conf))
+        # pr(conf.extvar)
 
     jsonobj = json.loads(jsonmsg)
 

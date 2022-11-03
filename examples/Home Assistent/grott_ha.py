@@ -4,9 +4,9 @@
 import json
 from datetime import datetime, timezone
 
-from paho.mqtt.client import Client
-
 from grottconf import Conf
+from grottdata import pr
+from paho.mqtt.client import Client
 
 """A pluging for grott
 This plugin allow to have autodiscovery of the device in HA
@@ -534,7 +534,7 @@ def grottext(conf: Conf, data: str, jsonmsg: dict):
         "ha_mqtt_port",
     ]
     if not all([param in conf.extvar for param in required_params]):
-        print("Missing configuration for ha_mqtt")
+        pr("Missing configuration for ha_mqtt")
         return 1
 
     conn = MqttStateHandler.get_conn(conf)
@@ -545,7 +545,7 @@ def grottext(conf: Conf, data: str, jsonmsg: dict):
     if jsonmsg.get("buffered") == "yes":
         # Skip buffered message, HA don't support them
         if conf.verbose:
-            print("\t - Grott HA - skipped buffered")
+            pr("\t - Grott HA - skipped buffered")
         return 1
 
     device_serial = jsonmsg["device"]
@@ -556,7 +556,7 @@ def grottext(conf: Conf, data: str, jsonmsg: dict):
     values["grott_last_push"] = dt.isoformat()
 
     if not MqttStateHandler.is_configured(device_serial):
-        print(f"\tGrott HA - creating {device_serial} config in HA")
+        pr(f"\tGrott HA - creating {device_serial} config in HA")
         for key in values.keys():
             # Generate a configuration payload
             payload = make_payload(conf, device_serial, "", key, key)
