@@ -38,7 +38,7 @@ class GrottPvOutLimit:
                 self.register[pvserial] = int(now)
             else:
                 if conf.verbose:
-                    print(
+                    pr(
                         f"\t - PVOut: Update refused for {pvserial} due to time limitation"
                     )
         else:
@@ -205,6 +205,7 @@ def procdata(conf, data):
     header = "".join(f"{n:02x}" for n in data[0:8])
     ndata = len(data)
     buffered = "nodetect"  # set buffer detection to nodetect (for compat mode), wil in auto detection changed to no or yes
+    is_smart_meter = header[14:16] in ("20", "1b")
 
     # automatic detect protocol (decryption and protocol) only if compat = False!
     novalidrec = False
@@ -213,11 +214,11 @@ def procdata(conf, data):
         pr("- Grott data record length", ndata)
     layout = "T" + header[6:8] + header[12:14] + header[14:16]
     # v270 add X for extended except for smart monitor records
-    if (ndata > 375) and (header[14:16] not in ("20", "1b")):
+    if ndata > 375 and not is_smart_meter:
         layout = layout + "X"
 
     # v270 no invtype added to layout for smart monitor records
-    if (conf.invtype != "default") and (header[14:16] not in ("20", "1b")):
+    if conf.invtype != "default" and not is_smart_meter:
         layout = layout + conf.invtype.upper()
 
     if header[14:16] == "50":
@@ -292,25 +293,27 @@ def procdata(conf, data):
 
     if conf.invtype == "default":
         # Handle systems with mixed invtype
-        if ndata > 50:
+        if ndata > 50 and not is_smart_meter:
             # There is enough data for an inverter serial number
             inverter_type = "default"
 
-            inverter_serial = result_string[76:96]
-            inverter_serial = codecs.decode(inverter_serial, "hex").decode("utf-8")
-            if conf.verbose:
-                pr("\t - Possible Inverter serial", inverter_serial)
-
-            # Lookup inverter type based on inverter serial
+            inverter_serial = None
             try:
-                inverter_type = conf.invtypemap[inverter_serial]
-                pr("\t - Matched inverter serial to inverter type", inverter_type)
-            except KeyError:
-                inverter_type = "default"
-                pr(
-                    "\t - Inverter serial not recognised - using inverter type",
-                    inverter_type,
-                )
+                inverter_serial = codecs.decode(result_string[76:96], "hex").decode('ASCII')
+                if conf.verbose:
+                    pr("\t - Possible Inverter serial", inverter_serial)
+            except UnicodeDecodeError:
+                # In case of problem (eg: new record type with different serial placement)
+                pass
+
+            if inverter_serial:
+                # Lookup inverter type based on inverter serial
+                try:
+                    inverter_type = conf.invtypemap[inverter_serial]
+                    pr("\t - Matched inverter serial to inverter type", inverter_type)
+                except:
+                    inverter_type = "default"
+                    pr("\t - Inverter serial not recognised - using inverter type", inverter_type)
 
             if inverter_type != "default":
                 layout = layout + inverter_type.upper()
@@ -559,7 +562,7 @@ def procdata(conf, data):
         if device_defined:
             deviceid = definedkey["device"]
         else:
-            if header[14:16] not in ("20", "1b"):
+            if not is_smart_meter:
                 deviceid = definedkey["pvserial"]
             else:
                 deviceid = definedkey["datalogserial"]
@@ -590,7 +593,7 @@ def procdata(conf, data):
 
         if not conf.nomqtt:
             # if meter data use mqtttopicname topic
-            if (header[14:16] in ("20", "1b")) and conf.mqttmtopic:
+            if is_smart_meter and conf.mqttmtopic:
                 mqtttopic = conf.mqttmtopicname
             else:
                 mqtttopic = conf.mqtttopic
