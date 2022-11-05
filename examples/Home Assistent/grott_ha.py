@@ -9,6 +9,8 @@ from paho.mqtt.client import Client
 from grottconf import Conf
 from grottdata import pr
 
+__version__ = "0.0.3"
+
 """A pluging for grott
 This plugin allow to have autodiscovery of the device in HA
 
@@ -490,7 +492,7 @@ def make_payload(
 
 class MqttStateHandler:
     # Hold the persistent connection
-    __mqtt_conn = None
+    __mqtt_conn: Client = None
     __pv_config = {}
 
     @classmethod
@@ -523,8 +525,14 @@ class MqttStateHandler:
 
     @classmethod
     def reset(cls):
+        try:
+            # Try to close cleanly
+            if cls.__mqtt_conn:
+                cls.__mqtt_conn.disconnect()
+        except Exception as e:
+            print(f"\t - Error while closing HA conneciton: {e}")
+            pass
         cls.__mqtt_conn = None
-        cls.__pv_config = {}
 
 
 def grottext(conf: Conf, data: str, jsonmsg: str):
@@ -559,10 +567,11 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
 
     # Send the last push in UTC with TZ
     dt = datetime.now(timezone.utc)
+    # Add a new value to the existing values
     values["grott_last_push"] = dt.isoformat()
 
     if not MqttStateHandler.is_configured(device_serial):
-        pr(f"\tGrott HA - creating {device_serial} config in HA")
+        pr(f"\tGrott HA {__version__} - creating {device_serial} config in HA")
         for key in values.keys():
             # Generate a configuration payload
             payload = make_payload(conf, device_serial, "", key, key)
@@ -599,7 +608,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
         except:
             # Reset connection state in case of problem
             MqttStateHandler.reset()
-            return 1
+            return 4
 
         # Now it's configured, no need to come back
         MqttStateHandler.set_configured(device_serial)
