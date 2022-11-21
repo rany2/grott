@@ -9,7 +9,7 @@ from paho.mqtt.publish import single, multiple
 from grottconf import Conf
 from grottdata import pr
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 """A pluging for grott
 This plugin allow to have autodiscovery of the device in HA
