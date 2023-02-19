@@ -9,7 +9,7 @@ from paho.mqtt.publish import single, multiple
 from grottconf import Conf
 from grottdata import pr
 
-__version__ = "0.0.7-rc5"
+__version__ = "0.0.7-rc6"
 
 """A pluging for grott
 This plugin allow to have autodiscovery of the device in HA
@@ -20,6 +20,7 @@ Version 0.0.7
   - Corrected a bug when creating the configuration
   - Add QoS 1 to reduce the possibility of lost message.
   - Updated Total work time unit.
+  - Add support for setting the retain flag
 
 Config:
     - ha_mqtt_host (required): The host of the MQTT broker user by HA (often the IP of HA)
