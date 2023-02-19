@@ -46,9 +46,21 @@
     </p>
 
     <script>
+        function resetInterface() {
+            document.getElementById("selectInv").innerHTML = '';
+            document.getElementById('dataentry').innerHTML = '';
+
+            document.getElementById('responseprelude2').style.display = 'none';
+            document.getElementById('responseend').style.display = 'none';
+            document.getElementById('response').innerHTML = '';
+        }
+    </script>
+
+    <script>
         let actionEventFirst = true;
         function actionEvent() {
             localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
+            resetInterface();
 
             if (this.value == 'datalogger' || this.value == 'inverter') {
                 fetch(this.value, {
@@ -129,22 +141,13 @@
                         }
                     })
                     .catch(error => {
-                        document.getElementById("selectInv").innerHTML = '';
-                        document.getElementById('dataentry').innerHTML = '';
-
-                        document.getElementById('responseprelude2').style.display = 'none';
-                        document.getElementById('responseend').style.display = 'none';
-
+                        resetInterface();
                         document.getElementById('response').innerHTML = `<b>${error}</b><br>`;
 
                         console.error(error);
                     });
             } else {
-                document.getElementById("selectInv").innerHTML = '';
-                document.getElementById('dataentry').innerHTML = '';
-
-                document.getElementById('responseprelude2').style.display = 'none';
-                document.getElementById('responseend').style.display = 'none';
+                resetInterface();
             }
         }
     </script>
