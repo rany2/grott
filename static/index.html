@@ -5,6 +5,11 @@
     <title>GrottServer</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .script {
+            display: none;
+        }
+    </style>
 </head>
 
 <body>
@@ -15,17 +20,22 @@
         Here are the <a href="https://www.enable-javascript.com/">
             instructions how to enable JavaScript in your web browser</a>.
     </noscript>
+    <script>
+        document.querySelector('.script').style.display = '';
+    </script>
 
     <script>
         let regFetchController = new AbortController();
         let regFetchSignal = regFetchController.signal;
     </script>
 
-    <p><b>API Token (set to empty to disable): </b> <input id="apitoken" type="password">
-        <input type="checkbox" id="showpassword"
-            onclick="let x = document.getElementById('apitoken'); if (x.type === 'password') { x.type = 'text'; } else { x.type = 'password'; }">
-        Show password
-    </p>
+    <div class="script">
+        <p><b>API Token (set to empty to disable): </b> <input id="apitoken" type="password">
+            <input type="checkbox" id="showpassword"
+                onclick="let x = document.getElementById('apitoken'); if (x.type === 'password') { x.type = 'text'; } else { x.type = 'password'; }">
+            Show password
+        </p>
+    </div>
     <script>
         document.getElementById('apitoken').addEventListener('change', apiTokenEvent);
         function apiTokenEvent() {
@@ -37,24 +47,26 @@
         document.getElementById('showpassword').checked = false; // reset checkbox
     </script>
 
-    <p><b>Select endpoint:</b>
-        <span style="font-weight: bold;" id="endpoints"></span>
-        <button onclick="init()" id="refreshButton">Refresh</button>
+    <div class="script">
+        <p><b>Select endpoint:</b>
+            <span style="font-weight: bold;" id="endpoints"></span>
+            <button onclick="init()" id="refreshButton">Refresh</button>
 
-        <script>
-            function init() {
-                let endpoints = ['datalogger', 'inverter'];
-                document.getElementById('endpoints').innerHTML = `<select id="endpoint" name="endpoint">` + endpoints.map(endpoint => `<option value="${endpoint}">${endpoint}</option>`).join('') + `</select>`;
-                document.getElementById('endpoint').addEventListener('change', actionEvent);
-                if (localStorage.getItem('grott_endpoint')) {
-                    document.getElementById('endpoint').value = localStorage.getItem('grott_endpoint');
+            <script>
+                function init() {
+                    let endpoints = ['datalogger', 'inverter'];
+                    document.getElementById('endpoints').innerHTML = `<select id="endpoint" name="endpoint">` + endpoints.map(endpoint => `<option value="${endpoint}">${endpoint}</option>`).join('') + `</select>`;
+                    document.getElementById('endpoint').addEventListener('change', actionEvent);
+                    if (localStorage.getItem('grott_endpoint')) {
+                        document.getElementById('endpoint').value = localStorage.getItem('grott_endpoint');
+                    }
+                    localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
+                    actionEvent.call(document.getElementById('endpoint'));
                 }
-                localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
-                actionEvent.call(document.getElementById('endpoint'));
-            }
-        </script>
-        <span id="selectInv"></span>
-    </p>
+            </script>
+            <span id="selectInv"></span>
+        </p>
+    </div>
 
     <script>
         function resetInterface() {
@@ -172,12 +184,14 @@
         }
     </script>
 
-    <span id="responseprelude">
-        <span id="dataentry"></span>
+    <div class="script">
+        <span id="responseprelude">
+            <span id="dataentry"></span>
 
-        <b style="display: none;" id="responseprelude2">Response: </b>
-    </span> <span id="response"></span>
-    <span id="responseend" style="display: none;"><br></span>
+            <b style="display: none;" id="responseprelude2">Response: </b>
+        </span> <span id="response"></span>
+        <span id="responseend" style="display: none;"><br></span>
+    </div>
 
     <script>
         var submitDataloggerComplete = true;
@@ -255,9 +269,11 @@
         }
     </script>
 
-    <br>
-    <b>Support mode (set this before you take a screenshot): </b>
-    <input type="checkbox" id="techsupport" name="techsupport" value="techsupport" onclick="techsupportEvent()">
+    <div class="script">
+        <br>
+        <b>Support mode (set this before you take a screenshot): </b>
+        <input type="checkbox" id="techsupport" name="techsupport" value="techsupport" onclick="techsupportEvent()">
+    </div>
     <script>
         function techsupportEvent() {
             let el = document.getElementById('techsupport');
