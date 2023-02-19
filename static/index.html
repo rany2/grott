@@ -57,7 +57,6 @@
     </script>
 
     <script>
-        let actionEventFirst = true;
         function actionEvent() {
             localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
             resetInterface();
@@ -117,9 +116,14 @@
                             if (prevChecked) {
                                 document.getElementById('selectInv').querySelector(`input[value="${prevChecked}"]`).checked = true;
                             }
-                            localStorage.setItem(`grott_${this.value}`, document.getElementById('selectInv').querySelector(`input[name="${this.value}"]:checked`).value);
                         } catch (e) {
                             console.error(e);
+                        }
+
+                        document.getElementById('selectInv').addEventListener('change', invEvent);
+                        function invEvent() {
+                            let endpoint = document.getElementById('endpoint').value;
+                            localStorage.setItem(`grott_${endpoint}`, document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value);
                         }
 
                         document.getElementById('dataentry').innerHTML = `
