@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>GrottServer</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <h1>GrottServer</h1>
+
+    <p><b>API Token (set to empty to disable): </b> <input id="apitoken" type="password">
+        <input type="checkbox" id="showpassword"
+            onclick="let x = document.getElementById('apitoken'); if (x.type === 'password') { x.type = 'text'; } else { x.type = 'password'; }">
+        Show password
+    </p>
+    <script>
+        document.getElementById('apitoken').addEventListener('change', apiTokenEvent);
+        function apiTokenEvent() {
+            localStorage.setItem('grott_apitoken', this.value);
+        }
+        if (localStorage.getItem('grott_apitoken')) {
+            document.getElementById('apitoken').value = localStorage.getItem('grott_apitoken');
+        }
+        document.getElementById('showpassword').checked = false; // reset checkbox
+    </script>
+
+    <p><b>Select endpoint:</b>
+        <span style="font-weight: bold;" id="endpoints"></span>
+        <button onclick="init()" id="refreshButton">Refresh</button>
+
+        <script>
+            function init() {
+                let endpoints = ['datalogger', 'inverter'];
+                document.getElementById('endpoints').innerHTML = `<select id="endpoint" name="endpoint">` + endpoints.map(endpoint => `<option value="${endpoint}">${endpoint}</option>`).join('') + `</select>`;
+                document.getElementById('endpoint').addEventListener('change', actionEvent);
+                if (localStorage.getItem('grott_endpoint')) {
+                    document.getElementById('endpoint').value = localStorage.getItem('grott_endpoint');
+                }
+                localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
+                actionEvent.call(document.getElementById('endpoint'));
+            }
+        </script>
+        <span id="selectInv"></span>
+    </p>
+
+    <script>
+        let actionEventFirst = true;
+        function actionEvent() {
+            localStorage.setItem('grott_endpoint', document.getElementById('endpoint').value);
+
+            if (this.value == 'datalogger' || this.value == 'inverter') {
+                fetch(this.value, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + document.getElementById('apitoken').value
+                    },
+                })
+                    .then(response => {
+                        if (response.status == 401) {
+                            throw 'Server error, please check your API token and try again.';
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        let parsed = Object.keys(data);
+                        let tmp = [];
+                        for (let i = 0; i < parsed.length; i++) {
+                            let key = parsed[i];
+                            if (!(typeof data[key] == 'object' && data[key] !== null)) {
+                                break;
+                            }
+
+                            let subkeys = Object.keys(data[key]);
+                            for (let j = 0; j < subkeys.length; j++) {
+                                let subkey = subkeys[j];
+                                if (typeof data[key][subkey] == 'object') {
+                                    tmp.push({
+                                        inverter: subkey,
+                                        datalogger: key,
+                                        ip: data[key].ip
+                                    });
+                                }
+                            }
+                        }
+                        parsed = tmp;
+                        if (parsed.length == 0) {
+                            throw `No ${this.value} found.`;
+                        }
+
+                        document.getElementById("selectInv").innerHTML = `<br><b>Select ${this.value}:</b>
+                            <ul>` + parsed.map(item => `
+                                <input type="radio"
+                                    name="${this.value}"
+                                    id="${this.value}_` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `"
+                                    value="` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `"
+                                <label for="${this.value}_${item.datalogger}">
+                                    ` + (this.value == 'datalogger' ? item.datalogger : item.inverter + ' via ' + item.datalogger) + ` (${item.ip})
+                                </label>`).join('') + `</ul>`;
+
+                        try {
+                            let prevChecked = localStorage.getItem(`grott_${this.value}`);
+                            if (prevChecked) {
+                                document.getElementById('selectInv').querySelector(`input[value="${prevChecked}"]`).checked = true;
+                            }
+                            localStorage.setItem(`grott_${this.value}`, document.getElementById('selectInv').querySelector(`input[name="${this.value}"]:checked`).value);
+                        } catch (e) {
+                            console.error(e);
+                        }
+
+                        document.getElementById('dataentry').innerHTML = `
+                            <b>Register:</b>
+                            <input type="text" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
+                            <br>
+                            <b>Value (-1 or leave empty for read):</b>
+                            <input type="text" id="value" name="value" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
+                            <input type="submit" value="Submit" onclick="submitDatalogger()">
+                            <br>
+                        `;
+
+                        document.getElementById('reg').addEventListener('change', regEvent);
+                        function regEvent() {
+                            localStorage.setItem('grott_reg', this.value);
+                        }
+                        if (localStorage.getItem('grott_reg')) {
+                            document.getElementById('reg').value = localStorage.getItem('grott_reg');
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById("selectInv").innerHTML = '';
+                        document.getElementById('dataentry').innerHTML = '';
+
+                        document.getElementById('responseprelude2').style.display = 'none';
+                        document.getElementById('responseend').style.display = 'none';
+
+                        document.getElementById('response').innerHTML = `<b>${error}</b><br>`;
+
+                        console.error(error);
+                    });
+            } else {
+                document.getElementById("selectInv").innerHTML = '';
+                document.getElementById('dataentry').innerHTML = '';
+
+                document.getElementById('responseprelude2').style.display = 'none';
+                document.getElementById('responseend').style.display = 'none';
+            }
+        }
+    </script>
+
+    <span id="responseprelude">
+        <span id="dataentry"></span>
+
+        <b style="display: none;" id="responseprelude2">Response: </b>
+    </span> <span id="response"></span>
+    <span id="responseend" style="display: none;"><br></span>
+
+    <script>
+        var submitDataloggerComplete = true;
+        function submitDatalogger() {
+            if (!submitDataloggerComplete)
+                return;
+            submitDataloggerComplete = false;
+            document.getElementById('responseprelude2').style.display = 'inline';
+            document.getElementById('responseend').style.display = 'inline';
+            document.getElementById('response').innerHTML = "";
+            let endpoint = document.getElementById('endpoint').value;
+            let datalogger = document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value;
+            let reg = document.getElementById('reg').value;
+            let value = document.getElementById('value').value;
+            if (value == '')
+                value = -1;
+
+            // add ... animation to response
+            document.getElementById('response').innerText = "";
+            let dots = window.setInterval(function () {
+                if (document.getElementById('response').innerText.length > 20)
+                    document.getElementById('response').innerText = "";
+                else
+                    document.getElementById('response').innerText += ".";
+            }, 50);
+
+            fetch(endpoint + `?${endpoint}=` + datalogger + '&command=register&register=' + reg + (value == -1 ? '' : '&value=' + value), {
+                method: (value == -1 ? 'GET' : 'PUT'),
+                headers: {
+                    'Authorization': 'Bearer ' + document.getElementById('apitoken').value
+                }
+            })
+                .then(response => {
+                    if (response.status != 401) {
+                        return response.text();
+                    } else {
+                        clearInterval(dots);
+                        document.getElementById('response').innerHTML = "";
+                        document.getElementById('response').innerText = response.statusText;
+                        submitDataloggerComplete = true;
+                        throw new Error('Unauthorized');
+                    }
+                })
+                .then(data => {
+                    clearInterval(dots);
+                    document.getElementById('response').innerHTML = "";
+                    if (value == -1) {
+                        try {
+                            let json = JSON.parse(data);
+                            if (json['value'] == undefined)
+                                throw new Error('value not found');
+                            document.getElementById('response').innerText += json['value'].toString();
+                        } catch (e) {
+                            document.getElementById('response').innerText = data.trimEnd();
+                        }
+                    } else {
+                        document.getElementById('response').innerText += data.trimEnd();
+                    }
+                    submitDataloggerComplete = true;
+                })
+                .catch(error => {
+                    clearInterval(dots);
+                    document.getElementById('response').innerText = error;
+                    submitDataloggerComplete = true;
+                });
+        }
+    </script>
+
+    <br>
+    <b>Support mode (set this before you take a screenshot): </b>
+    <input type="checkbox" id="techsupport" name="techsupport" value="techsupport" onclick="techsupportEvent()">
+    <script>
+        function techsupportEvent() {
+            let el = document.getElementById('techsupport');
+            let checked = el.checked;
+            if (checked) {
+                document.getElementById('showpassword').checked = false;
+                document.getElementById('showpassword').disabled = true;
+                document.getElementById('apitoken').type = 'password';
+
+                document.getElementById('endpoint').disabled = true;
+                document.getElementById('refreshButton').disabled = true;
+
+                for (let i = 0; i < document.getElementById('selectInv').querySelectorAll('label').length; i++) {
+                    let label = document.getElementById('selectInv').querySelectorAll('label')[i].innerText;
+                    console.log(label);
+                    let ip = label.split(' - ')[1];
+                    let ipcensored = ip.split('.').map((x, i) => i == 3 ? x : '***').join('.');
+                    let labelcensored = label.split(' - ')[0].slice(0, -6) + '***** - ' + ipcensored;
+                    document.getElementById('selectInv').querySelectorAll('label')[i].innerText = labelcensored;
+                    console.log(labelcensored);
+                }
+                el.disabled = true;
+            }
+        }
+
+        document.getElementById('techsupport').checked = false;
+    </script>
+
+    <script>
+        init();
+    </script>
+</body>
+
+</html>

@@ -7,6 +7,7 @@ Updated: 2023-01-20
 import codecs
 import hashlib
 import json
+import os
 import queue
 import socket
 import threading
@@ -133,6 +134,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         # set variables for StreamRequestHandler's setup()
         self.timeout = conf.httptimeout
 
+        # save index.html in memory
+        with open(os.path.join(os.path.dirname(__file__), "static", "index.html"), "rb") as f:
+            self.indexhtml = f.read()
+
         super().__init__(*args)
 
     def log_message(self, format, *args):
@@ -228,10 +233,6 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         return f"{self.loggerreg[dataloggerid]['ip']}_{self.loggerreg[dataloggerid]['port']}"
 
     def do_GET(self):
-        if not self.authorized():
-            self.send_error(401, "Unauthorized")
-            return
-
         if self.verbose:
             pr("- Grotthttpserver - Get received ")
 
@@ -245,6 +246,17 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
         # strip query string
         self.path = self.path.split("?")[0]
+
+        if not self.path:  # no path specified
+            responsetxt = self.indexhtml
+            responserc = 200
+            responseheader = "text/html"
+            htmlsendresp(self, responserc, responseheader, responsetxt)
+            return
+
+        if not self.authorized():
+            self.send_error(401, "Unauthorized")
+            return
 
         if self.path in ("datalogger", "inverter"):
             if self.path == "datalogger":
