@@ -176,8 +176,9 @@
             document.getElementById('responseend').style.display = 'inline';
             document.getElementById('response').innerHTML = "";
             let endpoint = document.getElementById('endpoint').value;
+            let datalogger = null;
             try {
-                let datalogger = document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value;
+                datalogger = document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value;
             } catch (e) {
                 document.getElementById('response').innerHTML = `<b>Please select a ${endpoint}.</b>`;
                 submitDataloggerComplete = true;
