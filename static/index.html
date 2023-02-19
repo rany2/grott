@@ -9,6 +9,10 @@
 
 <body>
     <h1>GrottServer</h1>
+    <script>
+        const regFetchController = new AbortController();
+        const regFetchSignal = regFetchController.signal;
+    </script>
 
     <p><b>API Token (set to empty to disable): </b> <input id="apitoken" type="password">
         <input type="checkbox" id="showpassword"
@@ -62,8 +66,7 @@
             resetInterface();
 
             if (this.value == 'datalogger' || this.value == 'inverter') {
-                document.getElementById('responseprelude2').style.display = '';
-                document.getElementById('responseend').style.display = '';
+                regFetchController.abort(); // cancel previous fetch
 
                 fetch(this.value, {
                     method: 'GET',
@@ -202,7 +205,8 @@
                 method: (value == -1 ? 'GET' : 'PUT'),
                 headers: {
                     'Authorization': 'Bearer ' + document.getElementById('apitoken').value
-                }
+                },
+                signal: regFetchSignal,
             })
                 .then(response => {
                     if (response.status != 401) {
