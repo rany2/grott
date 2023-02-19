@@ -146,10 +146,11 @@
 
                         document.getElementById('reg').addEventListener('change', regEvent);
                         function regEvent() {
-                            localStorage.setItem('grott_reg', this.value);
+                            let endpoint = document.getElementById('endpoint').value;
+                            localStorage.setItem(`grott_${endpoint}_reg`, document.getElementById('reg').value);
                         }
-                        if (localStorage.getItem('grott_reg')) {
-                            document.getElementById('reg').value = localStorage.getItem('grott_reg');
+                        if (localStorage.getItem(`grott_${this.value}_reg`)) {
+                            document.getElementById('reg').value = localStorage.getItem(`grott_${this.value}_reg`);
                         }
                     })
                     .catch(error => {
