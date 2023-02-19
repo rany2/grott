@@ -12,6 +12,12 @@
             color: #333;
         }
 
+        /* decrease <ul> margin */
+        ul {
+            margin-left: 1em;
+            margin-top: 1em;
+            padding: 0;
+        }
 
         @media (prefers-color-scheme: dark) {
             body {
@@ -45,7 +51,7 @@
     </script>
 
     <div class="script">
-        <p><b>API Token (set to empty to disable): </b> <input id="apitoken" type="password">
+        <p><b>API Token (leave empty to disable): </b> <input id="apitoken" type="password">
             <input type="checkbox" id="showpassword"
                 onclick="let x = document.getElementById('apitoken'); if (x.type === 'password') { x.type = 'text'; } else { x.type = 'password'; }">
             Unhide
@@ -172,7 +178,7 @@
                             <b>Register:</b>
                             <input type="number" min="0" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
                             <br>
-                            <b>Value (-1 or leave empty for read):</b>
+                            <b>Value (leave empty for read):</b>
                             <input type="text" id="value" name="value" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
                             <input type="submit" value="Submit" onclick="submitDatalogger()">
                             <br>
@@ -286,7 +292,7 @@
 
     <div class="script">
         <br>
-        <b>Support mode (set this before you take a screenshot): </b>
+        <b>Support mode: </b>
         <input type="checkbox" id="techsupport" name="techsupport" value="techsupport" onclick="techsupportEvent()">
     </div>
     <script>
