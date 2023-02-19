@@ -169,7 +169,13 @@
             document.getElementById('responseend').style.display = 'inline';
             document.getElementById('response').innerHTML = "";
             let endpoint = document.getElementById('endpoint').value;
-            let datalogger = document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value;
+            try {
+                let datalogger = document.getElementById('selectInv').querySelector(`input[name="${endpoint}"]:checked`).value;
+            } catch (e) {
+                document.getElementById('response').innerHTML = `<b>Please select a ${endpoint}.</b>`;
+                submitDataloggerComplete = true;
+                return;
+            }
             let reg = document.getElementById('reg').value;
             let value = document.getElementById('value').value;
             if (value == '')
