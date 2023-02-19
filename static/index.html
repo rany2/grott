@@ -170,7 +170,7 @@
 
                         document.getElementById('dataentry').innerHTML = `
                             <b>Register:</b>
-                            <input type="text" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
+                            <input type="number" min="0" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
                             <br>
                             <b>Value (-1 or leave empty for read):</b>
                             <input type="text" id="value" name="value" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
