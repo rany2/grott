@@ -240,7 +240,8 @@
                 })
                 .catch(error => {
                     clearInterval(dots);
-                    document.getElementById('response').innerText = error;
+                    if (error.name != 'AbortError')
+                        document.getElementById('response').innerText = error;
                     submitDataloggerComplete = true;
                 });
         }
