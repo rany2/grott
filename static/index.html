@@ -62,6 +62,9 @@
             resetInterface();
 
             if (this.value == 'datalogger' || this.value == 'inverter') {
+                document.getElementById('responseprelude2').style.display = '';
+                document.getElementById('responseend').style.display = '';
+
                 fetch(this.value, {
                     method: 'GET',
                     headers: {
