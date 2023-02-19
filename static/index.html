@@ -5,11 +5,6 @@
     <title>GrottServer</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        .script {
-            display: none;
-        }
-    </style>
 </head>
 
 <body>
@@ -20,8 +15,13 @@
         Here are the <a href="https://www.enable-javascript.com/">
             instructions how to enable JavaScript in your web browser</a>.
     </noscript>
+    <style type="text/css" id="hideContent">
+        .script {
+            display: none;
+        }
+    </style>
     <script>
-        document.querySelector('.script').style.display = '';
+        document.getElementById('hideContent').remove();
     </script>
 
     <script>
