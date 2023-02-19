@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from paho.mqtt.publish import single, multiple
 
 from grottconf import Conf
-from grottdata import pr
 
 __version__ = "0.0.7-rc6"
 
@@ -611,7 +610,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
         MQTT_PORT_CONF_KEY,
     ]
     if not all([param in conf.extvar for param in required_params]):
-        pr("Missing configuration for ha_mqtt")
+        print("Missing configuration for ha_mqtt")
         return 1
 
     # Need to decode the json string
@@ -620,7 +619,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
     if jsonmsg.get("buffered") == "yes":
         # Skip buffered message, HA don't support them
         if conf.verbose:
-            pr("\t - Grott HA - skipped buffered")
+            print("\t - Grott HA - skipped buffered")
         return 5
 
     device_serial = jsonmsg["device"]
@@ -636,7 +635,9 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
         conf, "layout", None
     ):
         configs_payloads = []
-        pr(f"\tGrott HA {__version__} - creating {device_serial} config in HA, {len(values.keys())} to push")
+        print(
+            f"\tGrott HA {__version__} - creating {device_serial} config in HA, {len(values.keys())} to push"
+        )
         for key in values.keys():
             # Generate a configuration payload
             payload = make_payload(conf, device_serial, key, key)
