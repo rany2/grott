@@ -319,7 +319,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if command == "register":
                 # test if valid reg is applied
                 try:
-                    if 0 <= int(urlquery["register"][0]) < 1125:
+                    if 0 <= int(urlquery["register"][0]) <= 65535:
                         register = urlquery["register"][0]
                     else:
                         raise ValueError("invalid register value")
@@ -509,7 +509,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if command == "register":
                 # test if valid reg is applied
                 try:
-                    if 0 <= int(urlquery["register"][0]) < 1125:
+                    if 0 <= int(urlquery["register"][0]) <= 65535:
                         register = urlquery["register"][0]
                     else:
                         raise ValueError("invalid register value")
@@ -547,7 +547,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
                 # Check for valid start register
                 try:
-                    if 0 <= int(urlquery["startregister"][0]) < 1125:
+                    if 0 <= int(urlquery["startregister"][0]) <= 65535:
                         startregister = urlquery["startregister"][0]
                     else:
                         raise ValueError("invalid register value")
@@ -560,7 +560,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
                 # Check for valid end register
                 try:
-                    if 0 <= int(urlquery["endregister"][0]) < 1125:
+                    if 0 <= int(urlquery["endregister"][0]) <= 65535:
                         endregister = urlquery["endregister"][0]
                     else:
                         raise ValueError("invalid register value")
