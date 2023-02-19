@@ -148,7 +148,7 @@
                                 <input type="radio"
                                     name="${this.value}"
                                     id="${this.value}_` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `"
-                                    value="` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `"
+                                    value="` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `>"
                                 <label for="${this.value}_${item.datalogger}">
                                     ` + (this.value == 'datalogger' ? item.datalogger : item.inverter + ' via ' + item.datalogger) + ` (${item.ip})
                                 </label>`).join('') + `</ul>`;
