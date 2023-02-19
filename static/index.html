@@ -303,10 +303,7 @@
 
                 for (let i = 0; i < document.getElementById('selectInv').querySelectorAll('label').length; i++) {
                     let label = document.getElementById('selectInv').querySelectorAll('label')[i].innerText;
-                    console.log(label);
-                    let ip = label.split(' - ')[1];
-                    let ipcensored = ip.split('.').map((x, i) => i == 3 ? x : '***').join('.');
-                    let labelcensored = label.split(' - ')[0].slice(0, -6) + '***** - ' + ipcensored;
+                    let labelcensored = label.substring(0, 3) + '*'.repeat(label.length - 3);
                     document.getElementById('selectInv').querySelectorAll('label')[i].innerText = labelcensored;
                     console.log(labelcensored);
                 }
