@@ -55,8 +55,8 @@
     </script>
 
     <div class="script">
-        <p><b>API Token (leave empty to disable): </b> <input id="apitoken" type="password">
-            <input type="checkbox" id="showpassword"
+        <p><b>API Token (leave empty to disable): </b> <input autocomplete="off" id="apitoken" type="password">
+            <input autocomplete="off" type="checkbox" id="showpassword"
                 onclick="let x = document.getElementById('apitoken'); if (x.type === 'password') { x.type = 'text'; } else { x.type = 'password'; }">
             <label for="showpassword">Unhide</label>
         </p>
@@ -155,7 +155,7 @@
 
                         document.getElementById("selectInv").innerHTML = `<br><b>Select ${this.value}:</b>
                             <ul>` + parsed.map(item => `
-                                <input type="radio"
+                                <input autocomplete="off" type="radio"
                                     name="${this.value}"
                                     id="${this.value}_` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `"
                                     value="` + (this.value == 'datalogger' ? item.datalogger : item.inverter) + `">
@@ -180,11 +180,11 @@
 
                         document.getElementById('dataentry').innerHTML = `
                             <b>Register:</b>
-                            <input type="number" min="0" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
+                            <input autocomplete="off" type="number" min="0" id="reg" name="reg" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
                             <br>
                             <b>Value (leave empty to read):</b>
-                            <input type="`+ (this.value == 'inverter' ? "number" : "text") + `" id="value" name="value" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
-                            <input type="submit" value="Submit" onclick="submitDatalogger()">
+                            <input autocomplete="off" type="`+ (this.value == 'inverter' ? "number" : "text") + `" id="value" name="value" value="" type="number" onkeydown="if (event.keyCode == 13) { submitDatalogger(); return false; }">
+                            <input autocomplete="off" type="submit" value="Submit" onclick="submitDatalogger()">
                             <br>
                         `;
 
