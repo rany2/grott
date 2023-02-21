@@ -238,8 +238,6 @@
             }
             let reg = document.getElementById('reg').value;
             let value = document.getElementById('value').value;
-            if (value == '')
-                value = -1;
 
             // add ... animation to response
             document.getElementById('response').innerText = "";
@@ -250,8 +248,8 @@
                     document.getElementById('response').innerText += ".";
             }, 50);
 
-            fetch(endpoint + `?${endpoint}=` + datalogger + '&command=register&register=' + reg + (value == -1 ? '' : '&value=' + value), {
-                method: (value == -1 ? 'GET' : 'PUT'),
+            fetch(endpoint + `?${endpoint}=` + datalogger + '&command=register&register=' + reg + (value == '' ? '' : '&value=' + value), {
+                method: (value == '' ? 'GET' : 'PUT'),
                 headers: {
                     'Authorization': 'Bearer ' + document.getElementById('apitoken').value
                 },
@@ -271,7 +269,7 @@
                 .then(data => {
                     clearInterval(dots);
                     document.getElementById('response').innerHTML = "";
-                    if (value == -1) {
+                    if (value == '') {
                         try {
                             let json = JSON.parse(data);
                             if (json['value'] == undefined)
