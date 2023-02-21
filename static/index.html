@@ -292,36 +292,6 @@
         }
     </script>
 
-    <div class="script">
-        <br>
-        <b>Support mode: </b>
-        <input type="checkbox" id="techsupport" name="techsupport" value="techsupport" onclick="techsupportEvent()">
-    </div>
-    <script>
-        function techsupportEvent() {
-            let el = document.getElementById('techsupport');
-            let checked = el.checked;
-            if (checked) {
-                document.getElementById('showpassword').checked = false;
-                document.getElementById('showpassword').disabled = true;
-                document.getElementById('apitoken').type = 'password';
-
-                document.getElementById('endpoint').disabled = true;
-                document.getElementById('refreshButton').disabled = true;
-
-                for (let i = 0; i < document.getElementById('selectInv').querySelectorAll('label').length; i++) {
-                    let label = document.getElementById('selectInv').querySelectorAll('label')[i].innerText;
-                    let labelcensored = label.substring(0, 3) + '*'.repeat(label.length - 3);
-                    document.getElementById('selectInv').querySelectorAll('label')[i].innerText = labelcensored;
-                    console.log(labelcensored);
-                }
-                el.disabled = true;
-            }
-        }
-
-        document.getElementById('techsupport').checked = false;
-    </script>
-
     <script>
         init();
     </script>
