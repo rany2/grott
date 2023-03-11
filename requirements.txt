@@ -1,5 +1,5 @@
 certifi==2022.12.7
-charset-normalizer==3.0.1
+charset-normalizer==3.1.0
 ciso8601==2.3.0
 idna==3.4
 influxdb-client==1.36.1
