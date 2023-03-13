@@ -135,7 +135,9 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         self.timeout = conf.httptimeout
 
         # save index.html in memory
-        with open(os.path.join(os.path.dirname(__file__), "static", "index.html"), "rb") as f:
+        with open(
+            os.path.join(os.path.dirname(__file__), "static", "index.html"), "rb"
+        ) as f:
             self.indexhtml = f.read()
 
         super().__init__(*args)
@@ -800,7 +802,9 @@ class GrottServerHandler(StreamRequestHandler):
         super().__init__(*args)
 
     def handle(self):
-        pr("- Grottserver - Client connected:", self.client_address)
+        pr(
+            f"- Grottserver - Client connected: {self.client_address[0]}:{self.client_address[1]}"
+        )
 
         # setup forwarding to Growatt server if configured
         if self.conf.serverforward:
@@ -812,8 +816,8 @@ class GrottServerHandler(StreamRequestHandler):
 
             if self.verbose:
                 pr(
-                    "- Grottserver - Configured forward for:f",
-                    f"{self.conf.growattip}: {self.conf.growattport}",
+                    "- Grottserver - Configured forward for:",
+                    f"{self.conf.growattip}:{self.conf.growattport}",
                 )
 
         # create qname from client address tuple
@@ -937,7 +941,9 @@ class GrottServerHandler(StreamRequestHandler):
                 pr(f"- Grottserver - Forward failed: {host}:{port}")
 
     def close_connection(self):
-        pr("- Grottserver - Close connection:", self.client_address)
+        pr(
+            f"- Grottserver - Close connection: {self.client_address[0]}{self.client_address[1]}"
+        )
 
         client_address, client_port = self.client_address
 
