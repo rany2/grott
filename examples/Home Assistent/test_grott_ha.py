@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import pytest
 from grottconf import Conf
+from grottdata import pr
 from grott_ha import make_payload, mapping
 
 
@@ -24,7 +25,7 @@ def test_generate_payload(conf):
     "Test that an auto generated payload for MQTT configuration"
 
     payload = make_payload(conf, serial, key, key)
-    print(payload)
+    pr(payload)
     # The default divider for pvpowerout is 10
     assert payload["value_template"] == "{{ value_json.pvpowerout | float / 10 }}"
     assert payload["name"] == "NCO7410 PV Output (Actual)"

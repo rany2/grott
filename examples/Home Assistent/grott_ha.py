@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from paho.mqtt.publish import single, multiple
 
 from grottconf import Conf
+from grottdata import pr
 
 __version__ = "0.0.7-rc6"
 
@@ -569,7 +570,7 @@ def process_conf(conf: Conf):
         MQTT_PORT_CONF_KEY,
     ]
     if not all([param in conf.extvar for param in required_params]):
-        print("Missing configuration for ha_mqtt")
+        pr("Missing configuration for ha_mqtt")
         raise AttributeError
 
     if MQTT_USERNAME_CONF_KEY in conf.extvar:
@@ -610,7 +611,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
         MQTT_PORT_CONF_KEY,
     ]
     if not all([param in conf.extvar for param in required_params]):
-        print("Missing configuration for ha_mqtt")
+        pr("Missing configuration for ha_mqtt")
         return 1
 
     # Need to decode the json string
@@ -619,7 +620,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
     if jsonmsg.get("buffered") == "yes":
         # Skip buffered message, HA don't support them
         if conf.verbose:
-            print("\t - Grott HA - skipped buffered")
+            pr("\t - Grott HA - skipped buffered")
         return 5
 
     device_serial = jsonmsg["device"]
@@ -635,14 +636,14 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
         conf, "layout", None
     ):
         configs_payloads = []
-        print(
+        pr(
             f"\tGrott HA {__version__} - creating {device_serial} config in HA, {len(values.keys())} to push"
         )
         for key in values.keys():
             # Generate a configuration payload
             payload = make_payload(conf, device_serial, key, key)
             if not payload:
-                print(f"\t[Grott HA] {__version__} skipped key: {key}")
+                pr(f"\t[Grott HA] {__version__} skipped key: {key}")
                 continue
 
             try:
@@ -660,7 +661,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
                     }
                 )
             except Exception as e:
-                print(
+                pr(
                     f"\t - [grott HA] {__version__} Exception while creating new sensor {key}: {e}"
                 )
                 return 6
@@ -684,18 +685,18 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
                 }
             )
         except Exception as e:
-            print(
+            pr(
                 f"\t - [grott HA] {__version__} Exception while creating new sensor last push: {e}"
             )
             return 4
-        print(f"\tPushing {len(configs_payloads)} configurations payload to HA")
+        pr(f"\tPushing {len(configs_payloads)} configurations payload to HA")
         publish_multiple(conf, configs_payloads)
-        print(f"\tConfigurations pushed")
+        pr(f"\tConfigurations pushed")
         # Now it's configured, no need to come back
         MqttStateHandler.set_configured(device_serial)
 
     if not MqttStateHandler.is_configured(device_serial):
-        print(f"\t[Grott HA] {__version__} Can't configure device: {device_serial}")
+        pr(f"\t[Grott HA] {__version__} Can't configure device: {device_serial}")
         return 7
 
     # Push the values to the topic
@@ -708,7 +709,7 @@ def grottext(conf: Conf, data: str, jsonmsg: str):
             retain=retain,
         )
     except Exception as e:
-        print("[HA ext] - Exception while publishing - {}".format(e))
+        pr("[HA ext] - Exception while publishing - {}".format(e))
         # Reset connection state in case of problem
         return 2
     return 0
@@ -726,7 +727,7 @@ def test_generate_payload():
         layout = "test"
 
     payload = make_payload(TestConf(), "NCO7410", "pvpowerout", "pvpowerout")
-    print(payload)
+    pr(payload)
     # The default divider for pvpowerout is 10
     assert payload["value_template"] == "{{ value_json.pvpowerout | float / 10 }}"
     assert payload["name"] == "NCO7410 PV Output (Actual)"
@@ -752,7 +753,7 @@ def test_generate_payload_without_divider():
         layout = "test"
 
     payload = make_payload(TestConf(), "NCO7410", "pvpowerout", "pvpowerout")
-    print(payload)
+    pr(payload)
     # The default divider for pvpowerout is 10
     assert payload["value_template"] == "{{ value_json.pvpowerout | float / 1 }}"
     assert payload["name"] == "NCO7410 PV Output (Actual)"
