@@ -71,15 +71,12 @@ class Conf:
         self.trace = False
         self.cfgfile = "grott.ini"
         self.minrecl = 100
-        self.decrypt = True
-        self.compat = False
         self.invtype = "default"  # specify sepcial invertype default (spf, sph)
         self.invtypemap = {}
         self.includeall = False  # Include all defined keys from layout (also incl = no)
         self.noipf = False  # Allow IP change if needed
         self.gtime = "auto"  # time used =  auto: use record time or if not valid server time, alternative server: use always server time
         self.sendbuf = True  # enable / disable sending historical data from buffer
-        self.valueoffset = 6
         self.inverterid = "automatic"
         self.mode = "proxy"
         self.grottport = 5279
@@ -157,14 +154,6 @@ class Conf:
 
         # Process command line arguments
         self.parserset()
-
-        # Prepare invert settings
-        self.SN = "".join([f"{ord(x):02x}" for x in self.inverterid])
-        self.offset = 6
-        if self.compat:
-            self.offset = int(
-                self.valueoffset
-            )  # set offset for older inverter types or after record change by Growatt
 
         # prepare MQTT security
         if not self.mqttauth:
@@ -311,10 +300,6 @@ class Conf:
             self.minrecl = config.getint("Generic", "minrecl")
         if config.has_option("Generic", "verbose"):
             self.verbose = config.getboolean("Generic", "verbose")
-        if config.has_option("Generic", "decrypt"):
-            self.decrypt = config.getboolean("Generic", "decrypt")
-        if config.has_option("Generic", "compat"):
-            self.compat = config.getboolean("Generic", "compat")
         if config.has_option("Generic", "includeall"):
             self.includeall = config.getboolean("Generic", "includeall")
         if config.has_option("Generic", "invtype"):
@@ -337,8 +322,6 @@ class Conf:
             self.grottip = config.get("Generic", "ip", environ_key="grottip")
         if config.has_option("Generic", "port", "grottport", environ_key="grottport"):
             self.grottport = config.getint("Generic", "port", environ_key="grottport")
-        if config.has_option("Generic", "valueoffset"):
-            self.valueoffset = config.get("Generic", "valueoffset")
         if config.has_option("Generic", "timeout"):
             self.timeout = config.getfloat("Generic", "timeout")
 
