@@ -735,7 +735,7 @@ def procdata(conf, data):
         try:
             grottext_conf = deepcopy(conf)
             grottext_conf.layout = layout
-            ext_result = module.grottext(conf, result_string, jsonmsg)
+            ext_result = module.grottext(grottext_conf, result_string, jsonmsg)
             if conf.verbose:
                 pr("- Grott extension processing ended: ", ext_result)
         except Exception as e:
