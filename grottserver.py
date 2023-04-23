@@ -942,7 +942,7 @@ class GrottServerHandler(StreamRequestHandler):
 
     def close_connection(self):
         pr(
-            f"- Grottserver - Close connection: {self.client_address[0]}{self.client_address[1]}"
+            f"- Grottserver - Close connection: {self.client_address[0]}:{self.client_address[1]}"
         )
 
         client_address, client_port = self.client_address
