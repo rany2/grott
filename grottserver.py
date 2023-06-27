@@ -15,7 +15,6 @@ from collections import defaultdict
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
-from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -878,7 +877,7 @@ class GrottServerHandler(StreamRequestHandler):
 
     def write_data(self):
         try:
-            while not sleep(self.conf.write_delay_ms / 1000):
+            while True:
                 data = self.send_queuereg[self.qname].get()
                 if not data:
                     break
