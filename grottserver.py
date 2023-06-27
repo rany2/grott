@@ -395,7 +395,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # clear all possible responses for this command to ensure no old responses are returned.
             queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
             # queue command
-            self.send_queuereg[qname].put_nowait(body)
+            self.send_queuereg[qname].put(body)
 
             try:
                 comresp = queue_commandrespget(
@@ -686,7 +686,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # clear all possible responses for this command to ensure no old responses are returned.
             queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
             # queue command
-            self.send_queuereg[qname].put_nowait(body)
+            self.send_queuereg[qname].put(body)
             responseno = f"{self.conf.sendseq:04x}"
 
             # wait for response
