@@ -97,30 +97,38 @@ def createtimecommand(conf, protocol, loggerid):
     return body
 
 
+def queue_clear(q: queue.Queue):
+    with q.mutex:
+        q.queue.clear()
+        q.all_tasks_done.notify_all()
+        q.unfinished_tasks = 0
+
+
+__QUEUE_COMMAND_RESP_CREATE = threading.Lock()
+
+
 def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
-    if "queue" not in commandresponse[qname]:
-        commandresponse[qname]["queue"] = {}
+    with __QUEUE_COMMAND_RESP_CREATE:
+        if sendcommand not in commandresponse[qname]:
+            commandresponse[qname][sendcommand] = {}
 
-    if sendcommand not in commandresponse[qname]["queue"]:
-        commandresponse[qname]["queue"][sendcommand] = {}
-
-    if regkey not in commandresponse[qname]["queue"][sendcommand]:
-        commandresponse[qname]["queue"][sendcommand][regkey] = queue.Queue()
+        if regkey not in commandresponse[qname][sendcommand]:
+            commandresponse[qname][sendcommand][regkey] = queue.Queue()
 
 
 def queue_commandrespclear(commandresponse, qname, sendcommand, regkey):
     queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
-    commandresponse[qname]["queue"][sendcommand][regkey].queue.clear()
+    queue_clear(commandresponse[qname][sendcommand][regkey])
 
 
 def queue_commandrespadd(commandresponse, qname, sendcommand, regkey, value):
-    queue_commandrespclear(commandresponse, qname, sendcommand, regkey)
-    commandresponse[qname]["queue"][sendcommand][regkey].put_nowait(value)
+    queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
+    commandresponse[qname][sendcommand][regkey].put_nowait(value)
 
 
 def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0):
     queue_commandrespcreate(commandresponse, qname, sendcommand, regkey)
-    return commandresponse[qname]["queue"][sendcommand][regkey].get(timeout=timeout)
+    return commandresponse[qname][sendcommand][regkey].get(timeout=timeout)
 
 
 class GrottHttpRequestHandler(BaseHTTPRequestHandler):
@@ -287,7 +295,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             try:
                 # is valid command specified?
                 command = urlquery["command"][0]
-                if command in ("register", "regall"):
+                if command in ("register",):
                     if self.verbose:
                         pr("- Grott - get command:", command)
                 else:
@@ -331,14 +339,6 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     responseheader = "text/plain"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
-            elif command == "regall":
-                comresp = self.commandresponse[qname][sendcommand]
-                responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
-                responserc = 200
-                responseheader = "application/json"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
-
             else:
                 responsetxt = b"command not defined or not available yet\r\n"
                 responserc = 400
@@ -391,17 +391,12 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     + format_multi_line("\t", body)
                 )
 
-            # queue command
-            self.send_queuereg[qname].put_nowait(body)
             # responseno = f"{self.conf.sendseq:04x}"
             regkey = f"{int(register):04x}"
-            try:
-                del self.commandresponse[qname][sendcommand][regkey]
-            except KeyError:
-                pass
-
             # clear all possible responses for this command to ensure no old responses are returned.
             queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
+            # queue command
+            self.send_queuereg[qname].put_nowait(body)
 
             try:
                 comresp = queue_commandrespget(
@@ -684,23 +679,16 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 crc16 = libscrc.modbus(bytes.fromhex(body))
                 body = bytes.fromhex(body) + crc16.to_bytes(2, "big")
 
-            # queue command
-            qname = self.get_qname(dataloggerid)
-            self.send_queuereg[qname].put_nowait(body)
-            responseno = f"{self.conf.sendseq:04x}"
             if sendcommand == "10":
                 regkey = f"{int(startregister):04x}" + f"{int(endregister):04x}"
             else:
                 regkey = f"{int(register):04x}"
-            try:
-                # delete response: be aware a 18 command give 19 response,
-                # 06 send command gives 06 response in differnt format!
-                del self.commandresponse[qname][sendcommand][regkey]
-            except KeyError:
-                pass
-
+            qname = self.get_qname(dataloggerid)
             # clear all possible responses for this command to ensure no old responses are returned.
             queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
+            # queue command
+            self.send_queuereg[qname].put_nowait(body)
+            responseno = f"{self.conf.sendseq:04x}"
 
             # wait for response
             if self.verbose:
@@ -823,12 +811,12 @@ class GrottServerHandler(StreamRequestHandler):
         # create qname from client address tuple
         self.qname = f"{self.client_address[0]}_{self.client_address[1]}"
 
-        # create queue
+        # create send queue
         self.send_queuereg[self.qname] = queue.Queue()
         if self.verbose:
             pr(f"- Grottserver - Send queue created for: {self.qname}")
 
-        # create command response
+        # create command response queue
         self.commandresponse[self.qname] = defaultdict(dict)
         if self.verbose:
             pr(f"- Grottserver - Command response created for: {self.qname}")
@@ -1139,10 +1127,6 @@ class GrottServerHandler(StreamRequestHandler):
             if command == "06":
                 # command 06 response has ack (result) + value. We will create a
                 # 06 response and a 05 response (for reg administration)
-                self.commandresponse[self.qname]["06"][regkey] = {
-                    "value": value,
-                    "result": result,
-                }
                 queue_commandrespadd(
                     self.commandresponse,
                     self.qname,
@@ -1150,9 +1134,7 @@ class GrottServerHandler(StreamRequestHandler):
                     regkey,
                     {"value": value, "result": result},
                 )
-                self.commandresponse[self.qname]["05"][regkey] = {"value": value}
             if command == "18":
-                self.commandresponse[self.qname]["18"][regkey] = {"result": result}
                 queue_commandrespadd(
                     self.commandresponse,
                     self.qname,
@@ -1162,7 +1144,6 @@ class GrottServerHandler(StreamRequestHandler):
                 )
             else:
                 # command 05 or 19
-                self.commandresponse[self.qname][command][regkey] = {"value": value}
                 queue_commandrespadd(
                     self.commandresponse,
                     self.qname,
@@ -1186,7 +1167,6 @@ class GrottServerHandler(StreamRequestHandler):
             value = result_string[84:86]
 
             regkey = f"{startregister:04x}" + f"{endregister:04x}"
-            self.commandresponse[self.qname][command][regkey] = {"value": value}
             queue_commandrespadd(
                 self.commandresponse,
                 self.qname,
