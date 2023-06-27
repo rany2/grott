@@ -345,7 +345,7 @@ class Conf:
         if config.has_option("Server", "registerreadtimeout"):
             self.registerreadtimeout = config.getfloat("Server", "registerreadtimeout")
         if config.has_option("Server", "registerwritetimeout"):
-            self.registerwritetimeout = config.getfloat("HTTP", "registerwritetimeout")
+            self.registerwritetimeout = config.getfloat("Server", "registerwritetimeout")
         if config.has_option("Server", "firstping"):
             self.firstping = config.getboolean("Server", "firstping")
         if config.has_option("Server", "sendseq"):
