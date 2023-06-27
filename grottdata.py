@@ -601,7 +601,8 @@ def procdata(conf, data):
             if conf.mqttdeviceidintopic:
                 mqtttopic += f"/{deviceid}"
 
-            pr("- Grott MQTT topic used: " + mqtttopic)
+            if conf.verbose:
+                pr("- Grott MQTT topic used: " + mqtttopic)
 
             if conf.mqttretain:
                 if conf.verbose:
