@@ -936,16 +936,19 @@ class GrottServerHandler(StreamRequestHandler):
         client_address, client_port = self.client_address
 
         if self.qname in self.send_queuereg:
-            self.send_queuereg[self.qname].put_nowait(None)
+            queue_clear(self.send_queuereg[self.qname])
+            self.send_queuereg[self.qname].put(None)
             del self.send_queuereg[self.qname]
 
         if self.qname in self.commandresponse:
             del self.commandresponse[self.qname]
 
         if self.qname in self.shutdown_queue:
+            queue_clear(self.shutdown_queue[self.qname])
             del self.shutdown_queue[self.qname]
 
         if self.qname in self.forward_queue:
+            queue_clear(self.forward_queue[self.qname])
             self.forward_queue[self.qname].put(None)
             del self.forward_queue[self.qname]
 
