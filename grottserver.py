@@ -131,12 +131,15 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
 
 
 class GrottHttpRequestHandler(BaseHTTPRequestHandler):
-    def __init__(self, send_queuereg, conf, loggerreg, commandresponse, *args):
+    def __init__(
+        self, send_queuereg, conf, loggerreg, commandresponse, register_mutex, *args
+    ):
         self.send_queuereg = send_queuereg
         self.conf = conf
         self.verbose = conf.verbose
         self.loggerreg = loggerreg
         self.commandresponse = commandresponse
+        self.register_mutex = register_mutex
 
         # set variables for StreamRequestHandler's setup()
         self.timeout = conf.httptimeout
@@ -392,41 +395,43 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             # responseno = f"{self.conf.sendseq:04x}"
             regkey = f"{int(register):04x}"
-            # clear all possible responses for this command to ensure no old responses are returned.
-            queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
-            # queue command
-            self.send_queuereg[qname].put(body)
 
-            try:
-                comresp = queue_commandrespget(
-                    self.commandresponse,
-                    qname,
-                    sendcommand,
-                    regkey,
-                    timeout=self.conf.registerreadtimeout,
-                )
-                if sendcommand == "05":
-                    if formatval == "dec":
-                        comresp["value"] = int(comresp["value"], 16)
-                    elif formatval == "text":
-                        comresp["value"] = codecs.decode(
-                            comresp["value"], "hex"
-                        ).decode("ascii", "backslashreplace")
-                    elif formatval == "hex":
-                        # comresp["value"] already in hex,
-                        # no need to do anything.
-                        pass
-                responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
-                responserc = 200
-                responseheader = "application/json"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
-            except (queue.Empty, KeyError, IndexError, ValueError):
-                responsetxt = b"no or invalid response received\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
+            with self.register_mutex[qname]:
+                # clear all possible responses for this command to ensure no old responses are returned.
+                queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
+                # queue command
+                self.send_queuereg[qname].put(body)
+
+                try:
+                    comresp = queue_commandrespget(
+                        self.commandresponse,
+                        qname,
+                        sendcommand,
+                        regkey,
+                        timeout=self.conf.registerreadtimeout,
+                    )
+                    if sendcommand == "05":
+                        if formatval == "dec":
+                            comresp["value"] = int(comresp["value"], 16)
+                        elif formatval == "text":
+                            comresp["value"] = codecs.decode(
+                                comresp["value"], "hex"
+                            ).decode("ascii", "backslashreplace")
+                        elif formatval == "hex":
+                            # comresp["value"] already in hex,
+                            # no need to do anything.
+                            pass
+                    responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
+                    responserc = 200
+                    responseheader = "application/json"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+                except (queue.Empty, KeyError, IndexError, ValueError):
+                    responsetxt = b"no or invalid response received\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
         elif self.path == "help":
             responserc = 200
@@ -683,50 +688,52 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             else:
                 regkey = f"{int(register):04x}"
             qname = self.get_qname(dataloggerid)
-            # clear all possible responses for this command to ensure no old responses are returned.
-            queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
-            # queue command
-            self.send_queuereg[qname].put(body)
-            responseno = f"{self.conf.sendseq:04x}"
 
-            # wait for response
-            if self.verbose:
-                pr("- Grotthttpserver - wait for PUT response")
-            try:
-                # read response: be aware a 18 command give 19 response,
-                # 06 send command gives 06 response in differnt format!
-                queue_commandrespget(
-                    self.commandresponse,
-                    qname,
-                    sendcommand,
-                    regkey,
-                    timeout=self.conf.registerwritetimeout,
-                )
+            with self.register_mutex[qname]:
+                # clear all possible responses for this command to ensure no old responses are returned.
+                queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
+                # queue command
+                self.send_queuereg[qname].put(body)
+                responseno = f"{self.conf.sendseq:04x}"
+
+                # wait for response
                 if self.verbose:
-                    pr(
-                        "- Grotthttperver - Commandresponse:",
-                        responseno,
-                        register,
-                        self.commandresponse[qname][sendcommand][regkey],
+                    pr("- Grotthttpserver - wait for PUT response")
+                try:
+                    # read response: be aware a 18 command give 19 response,
+                    # 06 send command gives 06 response in differnt format!
+                    queue_commandrespget(
+                        self.commandresponse,
+                        qname,
+                        sendcommand,
+                        regkey,
+                        timeout=self.conf.registerwritetimeout,
                     )
-                responsetxt = b"OK\r\n"
-                responserc = 200
-                responseheader = "text/plain"
-                if self.verbose:
-                    pr(
-                        "- Grott - datalogger command response:",
-                        responserc,
-                        responsetxt,
-                        responseheader,
-                    )
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
-            except queue.Empty:
-                responsetxt = b"no or invalid response received\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
-                return
+                    if self.verbose:
+                        pr(
+                            "- Grotthttperver - Commandresponse:",
+                            responseno,
+                            register,
+                            self.commandresponse[qname][sendcommand][regkey],
+                        )
+                    responsetxt = b"OK\r\n"
+                    responserc = 200
+                    responseheader = "text/plain"
+                    if self.verbose:
+                        pr(
+                            "- Grott - datalogger command response:",
+                            responserc,
+                            responsetxt,
+                            responseheader,
+                        )
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+                except queue.Empty:
+                    responsetxt = b"no or invalid response received\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
         else:
             self.send_error(404)
 
@@ -734,14 +741,14 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 class GrottHttpServer(HTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
-    def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
+    def __init__(self, conf, send_queuereg, loggerreg, commandresponse, register_mutex):
         def handler_factory(*args):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
             return GrottHttpRequestHandler(
-                send_queuereg, conf, loggerreg, commandresponse, *args
+                send_queuereg, conf, loggerreg, commandresponse, register_mutex, *args
             )
 
         self.allow_reuse_address = True
@@ -752,14 +759,20 @@ class GrottHttpServer(HTTPServer):
 class GrottServer(ThreadingTCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
-    def __init__(self, conf, send_queuereg, loggerreg, commandresponse):
+    def __init__(self, conf, send_queuereg, loggerreg, commandresponse, register_mutex):
         def handler_factory(*args):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
             return GrottServerHandler(
-                send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
+                send_queuereg,
+                conf,
+                loggerreg,
+                commandresponse,
+                shutdown_queue,
+                register_mutex,
+                *args,
             )
 
         shutdown_queue = {}
@@ -771,7 +784,14 @@ class GrottServer(ThreadingTCPServer):
 
 class GrottServerHandler(StreamRequestHandler):
     def __init__(
-        self, send_queuereg, conf, loggerreg, commandresponse, shutdown_queue, *args
+        self,
+        send_queuereg,
+        conf,
+        loggerreg,
+        commandresponse,
+        shutdown_queue,
+        register_mutex,
+        *args,
     ):
         self.commandresponse = commandresponse
         self.conf = conf
@@ -781,6 +801,7 @@ class GrottServerHandler(StreamRequestHandler):
         self.forward_input = ()
         self.forward_queue = {}
         self.verbose = conf.verbose
+        self.register_mutex = register_mutex
 
         # set variables for StreamRequestHandler's setup()
         self.timeout = conf.timeout
@@ -819,6 +840,11 @@ class GrottServerHandler(StreamRequestHandler):
         self.commandresponse[self.qname] = defaultdict(dict)
         if self.verbose:
             pr(f"- Grottserver - Command response created for: {self.qname}")
+
+        # create register mutex
+        self.register_mutex[self.qname] = threading.Lock()
+        if self.verbose:
+            pr(f"- Grottserver - Register mutex created for: {self.qname}")
 
         # on any value, shutdown everything
         self.shutdown_queue[self.qname] = queue.Queue()
@@ -941,6 +967,9 @@ class GrottServerHandler(StreamRequestHandler):
 
         if self.qname in self.commandresponse:
             del self.commandresponse[self.qname]
+
+        if self.qname in self.register_mutex:
+            del self.register_mutex[self.qname]
 
         if self.qname in self.shutdown_queue:
             queue_clear(self.shutdown_queue[self.qname])
@@ -1128,12 +1157,12 @@ class GrottServerHandler(StreamRequestHandler):
             if command == "06":
                 # command 06 response has ack (result) + value. We will create a
                 # 06 response and a 05 response (for reg administration)
-                data_to_put={"value": value, "result": result}
+                data_to_put = {"value": value, "result": result}
             elif command == "18":
-                data_to_put={"result": result}
+                data_to_put = {"result": result}
             else:
                 # command 05 or 19
-                data_to_put={"value": value}
+                data_to_put = {"value": value}
 
             # push command response for HTTP server to be aware of
             queue_commandrespadd(
@@ -1189,6 +1218,7 @@ class Server:
         self.conf = conf
         self.send_queuereg = {}
         self.loggerreg = {}
+        self.register_mutex = {}
         self.commandresponse = defaultdict(dict)
 
     def main(self, conf):
@@ -1196,10 +1226,18 @@ class Server:
             conf.grottip = "0.0.0.0"
 
         http_server = GrottHttpServer(
-            conf, self.send_queuereg, self.loggerreg, self.commandresponse
+            conf,
+            self.send_queuereg,
+            self.loggerreg,
+            self.commandresponse,
+            self.register_mutex,
         )
         device_server = GrottServer(
-            conf, self.send_queuereg, self.loggerreg, self.commandresponse
+            conf,
+            self.send_queuereg,
+            self.loggerreg,
+            self.commandresponse,
+            self.register_mutex,
         )
 
         try:
