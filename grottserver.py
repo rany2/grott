@@ -13,7 +13,7 @@ import socket
 import threading
 from collections import defaultdict
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -738,7 +738,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
 
-class GrottHttpServer(HTTPServer):
+class GrottHttpServer(ThreadingHTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
     def __init__(self, conf, send_queuereg, loggerreg, commandresponse, register_mutex):
