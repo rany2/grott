@@ -1128,30 +1128,21 @@ class GrottServerHandler(StreamRequestHandler):
             if command == "06":
                 # command 06 response has ack (result) + value. We will create a
                 # 06 response and a 05 response (for reg administration)
-                queue_commandrespadd(
-                    self.commandresponse,
-                    self.qname,
-                    command,
-                    regkey,
-                    {"value": value, "result": result},
-                )
+                data_to_put={"value": value, "result": result}
             elif command == "18":
-                queue_commandrespadd(
-                    self.commandresponse,
-                    self.qname,
-                    command,
-                    regkey,
-                    {"result": result},
-                )
+                data_to_put={"result": result}
             else:
                 # command 05 or 19
-                queue_commandrespadd(
-                    self.commandresponse,
-                    self.qname,
-                    command,
-                    regkey,
-                    {"value": value},
-                )
+                data_to_put={"value": value}
+
+            # push command response for HTTP server to be aware of
+            queue_commandrespadd(
+                self.commandresponse,
+                self.qname,
+                command,
+                regkey,
+                data_to_put,
+            )
 
             response = None
 
