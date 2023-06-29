@@ -66,13 +66,13 @@ def createtimecommand(conf, protocol, loggerid):
     bodybytes = loggerid.encode("ascii")
     body = bodybytes.hex()
     if protocol == "06":
-        body = body + "0000000000000000000000000000000000000000"
+        body += "0000000000000000000000000000000000000000"
     register = 31
-    body = body + f"{int(register):04x}"
+    body += f"{int(register):04x}"
     currenttime = getcurrenttime(conf)
     timex = currenttime.encode("ascii").hex()
     timel = f"{int(len(timex) / 2):04x}"
-    body = body + timel + timex
+    body += timel + timex
     # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
     bodylen = int(len(body) / 2 + 2)
 
@@ -349,10 +349,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             body = bodybytes.hex()
 
             if self.loggerreg[dataloggerid]["protocol"] == "06":
-                body = body + "0000000000000000000000000000000000000000"
-            body = body + f"{int(register):04x}"
+                body += "0000000000000000000000000000000000000000"
+            body += f"{int(register):04x}"
             # assumption now only 1 reg query; other put below end register
-            body = body + f"{int(register):04x}"
+            body += f"{int(register):04x}"
             # calculate length of payload = body/2 (str => bytes) + 2 bytes invertid + command.
             bodylen = int(len(body) / 2 + 2)
 
@@ -630,7 +630,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             body = bodybytes.hex()
 
             if self.loggerreg[dataloggerid]["protocol"] == "06":
-                body = body + "0000000000000000000000000000000000000000"
+                body += "0000000000000000000000000000000000000000"
 
             if sendcommand == "06":
                 value = f"{value:04x}"
@@ -651,7 +651,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     + value
                 )
             else:
-                body = body + f"{int(register):04x}" + valuelen + value
+                body += f"{int(register):04x}" + valuelen + value
             bodylen = int(len(body) / 2 + 2)
 
             # create header
