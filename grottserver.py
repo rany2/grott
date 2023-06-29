@@ -1135,7 +1135,7 @@ class GrottServerHandler(StreamRequestHandler):
                     regkey,
                     {"value": value, "result": result},
                 )
-            if command == "18":
+            elif command == "18":
                 queue_commandrespadd(
                     self.commandresponse,
                     self.qname,
