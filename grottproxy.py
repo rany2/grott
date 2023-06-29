@@ -11,17 +11,17 @@ from socketserver import StreamRequestHandler, ThreadingTCPServer
 
 import libscrc
 
-from grottdata import decrypt, format_multi_line, pr, procdata
+from grottdata import pr, procdata
 
 
-def validate_record(xdata):
+def is_record_valid(xdata):
     """validata data record on length and CRC (for "05" and "06" records)
 
     Args:
         xdata (str): data record in hex format
 
     Returns:
-        int: 0 if valid, 8 if invalid
+        bool: True if valid, False if invalid
     """
 
     data = bytes.fromhex(xdata)
@@ -41,14 +41,13 @@ def validate_record(xdata):
     if protocol != "02":
         crc_calc = libscrc.modbus(data[0 : ldata - 2])
 
-    if len_realpayload == len_orgpayload:
-        returncc = 0
-        if protocol != "02" and crc != crc_calc:
-            returncc = 8
-    else:
-        returncc = 8
+    if len_realpayload != len_orgpayload:
+        return False
 
-    return returncc
+    if protocol != "02" and crc != crc_calc:
+        return False
+
+    return True
 
 
 class Forward:
@@ -205,8 +204,7 @@ class GrottProxyHandler(StreamRequestHandler):
     def process_data(self, data, queues):
         # test if record is not corrupted
         vdata = "".join(f"{n:02x}" for n in data)
-        validatecc = validate_record(vdata)
-        if validatecc != 0:
+        if not is_record_valid(vdata):
             pr("- Grottproxy - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)

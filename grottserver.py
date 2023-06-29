@@ -21,7 +21,7 @@ import libscrc
 import pytz
 
 from grottdata import decrypt, format_multi_line, pr, procdata
-from grottproxy import Forward, validate_record
+from grottproxy import Forward, is_record_valid
 
 # Version:
 verrel = "0.0.12"
@@ -972,8 +972,7 @@ class GrottServerHandler(StreamRequestHandler):
         # validate data (Length + CRC for 05/06)
         # join gebeurt nu meerdere keren! Stroomlijnen!!!!
         vdata = "".join(f"{n:02x}" for n in data)
-        validatecc = validate_record(vdata)
-        if validatecc != 0:
+        if not is_record_valid(vdata):
             pr("- Grottserver - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)
