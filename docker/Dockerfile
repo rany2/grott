@@ -13,6 +13,7 @@ RUN apt-get install -y locales && locale-gen en_US.UTF-8
 COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
+COPY static /app/static
 COPY grott.py /app/grott.py
 COPY grottconf.py /app/grottconf.py
 COPY grottdata.py /app/grottdata.py

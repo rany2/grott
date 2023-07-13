@@ -14,6 +14,7 @@ RUN apk add --no-cache --virtual .build-deps \
     pip install -r /app/requirements.txt && \
     apk del --purge .build-deps
 
+COPY static /app/static
 COPY grott.py /app/grott.py
 COPY grottconf.py /app/grottconf.py
 COPY grottdata.py /app/grottdata.py
