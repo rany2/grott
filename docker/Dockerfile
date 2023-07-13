@@ -10,10 +10,8 @@ RUN apt-get clean && apt-get update && apt-get upgrade -y
 RUN apt-get install -y locales && locale-gen en_US.UTF-8
 
 #Install required python packages 
-RUN pip install paho-mqtt
-RUN pip install requests 
-RUN pip install influxdb
-RUN pip install influxdb-client 
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
 COPY grott.py /app/grott.py
 COPY grottconf.py /app/grottconf.py
