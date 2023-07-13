@@ -1,7 +1,5 @@
 FROM arm64v8/python:3.11-alpine
 
-ARG INFLUXDB_CLIENT_VERSION=1.26.0
-
 ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
