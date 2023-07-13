@@ -1,4 +1,4 @@
-FROM arm64v8/python:3.7-alpine
+FROM arm64v8/python:3.11-alpine
 
 ARG INFLUXDB_CLIENT_VERSION=1.26.0
 
