@@ -613,12 +613,10 @@ def procdata(conf, data):
                 publish.single(
                     mqtttopic,
                     payload=jsonmsg,
-                    qos=0,
                     retain=conf.mqttretain,
                     hostname=conf.mqttip,
                     port=conf.mqttport,
                     client_id=conf.inverterid,
-                    keepalive=60,
                     auth=conf.pubauth,
                 )
                 if conf.verbose:
