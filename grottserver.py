@@ -413,7 +413,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 except KeyError:
                     # If the queue is not found, it means that the datalogger has disconnected.
                     #
-                    # We need to remove the datalogger from the loggerreg and commandresponse.
+                    # We need to remove the datalogger from commandresponse and register_mutex.
                     self.commandresponse.pop(qname, None)
                     self.register_mutex.pop(qname, None)
 
@@ -728,7 +728,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 except KeyError:
                     # If the queue is not found, it means that the datalogger has disconnected.
                     #
-                    # We need to remove the datalogger from the loggerreg and commandresponse.
+                    # We need to remove the datalogger from commandresponse and register_mutex.
                     self.commandresponse.pop(qname, None)
                     self.register_mutex.pop(qname, None)
 
