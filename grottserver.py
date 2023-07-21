@@ -35,7 +35,7 @@ def htmlsendresp(self, responserc, responseheader, responsetxt):
     self.wfile.write(responsetxt)
     if self.verbose:
         pr(
-            "- Grotthttpserver - http response send:",
+            "- GrottHttpServer - http response send:",
             responserc,
             responseheader,
             responsetxt,
@@ -51,9 +51,9 @@ def getcurrenttime(conf):
                 pr("- Timezone local specified default timezone used")
             else:
                 pr(
-                    "- Grott unknown timezone : ",
+                    "- Grott unknown timezone:",
                     conf.tmzone,
-                    ", default timezone used",
+                    "- default timezone used",
                 )
         conf.tmzone = "local"
 
@@ -153,7 +153,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         super().__init__(*args)
 
     def log_message(self, format, *args):
-        pr("- GrottHttpserver - %s - %s" % (self.address_string(), format % args))
+        pr("- GrottHttpServer - %s - %s" % (self.address_string(), format % args))
 
     def send_header(self, keyword, value):
         if keyword.lower() == "server":
@@ -246,7 +246,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.verbose:
-            pr("- Grotthttpserver - Get received ")
+            pr("- GrottHttpServer - Get received ")
 
         # parse url
         url = urlparse(self.path)
@@ -274,14 +274,14 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if self.path == "datalogger":
                 if self.verbose:
                     pr(
-                        "- Grotthttpserver - datalogger get received : ",
+                        "- GrottHttpServer - datalogger get received: ",
                         urlquery,
                     )
                 sendcommand = "19"
             else:
                 if self.verbose:
                     pr(
-                        "- Grotthttpserver - inverter get received : ",
+                        "- GrottHttpServer - inverter get received: ",
                         urlquery,
                     )
                 sendcommand = "05"
@@ -367,7 +367,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     "inverterno"
                 ]
                 if self.verbose:
-                    pr(f"- Grotthttpserver - selected deviceid: {deviceid}")
+                    pr(f"- GrottHttpServer - selected deviceid: {deviceid}")
 
             header = (
                 f"{self.conf.sendseq:04x}"
@@ -389,7 +389,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # add header
             if self.verbose:
                 pr(
-                    "- Grotthttpserver - command created:\n"
+                    "- GrottHttpServer - command created:\n"
                     + format_multi_line("\t", body)
                 )
 
@@ -481,13 +481,13 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if self.path == "datalogger":
                 if self.verbose:
                     pr(
-                        "- Grotthttpserver - datalogger PUT received:",
+                        "- GrottHttpServer - datalogger PUT received:",
                         urlquery,
                     )
                 sendcommand = "18"
             else:
                 if self.verbose:
-                    pr("- Grotthttpserver - inverter PUT received:", urlquery)
+                    pr("- GrottHttpServer - inverter PUT received:", urlquery)
                 # Must be an inverter. Use 06 for now. May change to 10 later
                 sendcommand = "06"
 
@@ -504,7 +504,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 command = urlquery["command"][0]
                 if command in ("register", "multiregister", "datetime"):
                     if self.verbose:
-                        pr("- Grotthttpserver - PUT command:", command)
+                        pr("- GrottHttpServer - PUT command:", command)
                 else:
                     responsetxt = b"no valid command entered\r\n"
                     responserc = 400
@@ -695,7 +695,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             if self.verbose:
                 pr(
-                    "- Grotthttpserver - unencrypted command:\n"
+                    "- GrottHttpServer - unencrypted command:\n"
                     + format_multi_line("\t", body)
                 )
 
@@ -743,7 +743,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
                 # wait for response
                 if self.verbose:
-                    pr("- Grotthttpserver - wait for PUT response")
+                    pr("- GrottHttpServer - wait for PUT response")
                 try:
                     # read response: be aware a 18 command give 19 response,
                     # 06 send command gives 06 response in differnt format!
@@ -798,7 +798,7 @@ class GrottHttpServer(ThreadingHTTPServer):
 
         self.allow_reuse_address = True
         super().__init__((conf.httphost, conf.httpport), handler_factory)
-        pr(f"- GrottHttpserver - Ready to listen at: {conf.httphost}:{conf.httpport}")
+        pr(f"- GrottHttpServer - Ready to listen at: {conf.httphost}:{conf.httpport}")
 
 
 class GrottServer(ThreadingTCPServer):
@@ -856,7 +856,7 @@ class GrottServerHandler(StreamRequestHandler):
 
     def handle(self):
         pr(
-            f"- Grottserver - Client connected: {self.client_address[0]}:{self.client_address[1]}"
+            f"- GrottServer - Client connected: {self.client_address[0]}:{self.client_address[1]}"
         )
 
         # setup forwarding to Growatt server if configured
@@ -869,7 +869,7 @@ class GrottServerHandler(StreamRequestHandler):
 
             if self.verbose:
                 pr(
-                    "- Grottserver - Configured forward for:",
+                    "- GrottServer - Configured forward for:",
                     f"{self.conf.growattip}:{self.conf.growattport}",
                 )
 
@@ -879,17 +879,17 @@ class GrottServerHandler(StreamRequestHandler):
         # create send queue
         self.send_queuereg[self.qname] = queue.Queue()
         if self.verbose:
-            pr(f"- Grottserver - Send queue created for: {self.qname}")
+            pr(f"- GrottServer - Send queue created for: {self.qname}")
 
         # create command response queue
         self.commandresponse[self.qname] = defaultdict(dict)
         if self.verbose:
-            pr(f"- Grottserver - Command response created for: {self.qname}")
+            pr(f"- GrottServer - Command response created for: {self.qname}")
 
         # create register mutex
         self.register_mutex[self.qname] = threading.Lock()
         if self.verbose:
-            pr(f"- Grottserver - Register mutex created for: {self.qname}")
+            pr(f"- GrottServer - Register mutex created for: {self.qname}")
 
         # on any value, shutdown everything
         self.shutdown_queue[self.qname] = queue.Queue()
@@ -979,10 +979,10 @@ class GrottServerHandler(StreamRequestHandler):
         fsock, host, port = self.forward_input
         try:
             if self.verbose:
-                pr(f"- Grottserver - Sending forward data for {host}:{port}")
+                pr(f"- GrottServer - Sending forward data for {host}:{port}")
             fsock.send(data)
             if self.verbose:
-                pr(f"- Grottserver - Forward data sent for {host}:{port}")
+                pr(f"- GrottServer - Forward data sent for {host}:{port}")
         except (OSError, AttributeError):
             try:
                 fsock.shutdown(socket.SHUT_WR)
@@ -991,16 +991,16 @@ class GrottServerHandler(StreamRequestHandler):
 
             forward = Forward(self.conf.forwardtimeout).start(host, port)
             if self.verbose:
-                pr(f"- Grottserver - Forward started: {host}:{port}")
+                pr(f"- GrottServer - Forward started: {host}:{port}")
             self.forward_input = (forward, host, port)
             if attempts < self.conf.forwardretry:
                 self.forward_data_op(data, attempts + 1)
             else:
-                pr(f"- Grottserver - Forward failed: {host}:{port}")
+                pr(f"- GrottServer - Forward failed: {host}:{port}")
 
     def close_connection(self):
         pr(
-            f"- Grottserver - Close connection: {self.client_address[0]}:{self.client_address[1]}"
+            f"- GrottServer - Close connection: {self.client_address[0]}:{self.client_address[1]}"
         )
 
         client_address, client_port = self.client_address
@@ -1025,15 +1025,15 @@ class GrottServerHandler(StreamRequestHandler):
                 and self.loggerreg[key]["port"] == client_port
             ):
                 del self.loggerreg[key]
-                pr(f"- Grottserver - config info deleted for {key}")
+                pr(f"- GrottServer - config info deleted for {key}")
                 break
 
     def process_data(self, data):
         # Display data
         if self.verbose:
             pr(
-                f"- Grottserver - Data received from : {self.qname}\n"
-                + "- Grottserver - Original Data:\n"
+                f"- GrottServer - Data received from: {self.qname}\n"
+                + "- GrottServer - Original Data:\n"
                 + format_multi_line("\t", data)
             )
 
@@ -1041,7 +1041,7 @@ class GrottServerHandler(StreamRequestHandler):
         # join gebeurt nu meerdere keren! Stroomlijnen!!!!
         vdata = "".join(f"{n:02x}" for n in data)
         if not is_record_valid(vdata):
-            pr("- Grottserver - Invalid data record received, not processing")
+            pr("- GrottServer - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)
             return
@@ -1064,7 +1064,7 @@ class GrottServerHandler(StreamRequestHandler):
             result_string = "".join(f"{n:02x}" for n in data)
         if self.verbose:
             pr(
-                "- Grottserver - Plain record:\n"
+                "- GrottServer - Plain record:\n"
                 + format_multi_line("\t", result_string)
             )
         loggerid = result_string[16:36]
@@ -1076,7 +1076,7 @@ class GrottServerHandler(StreamRequestHandler):
             response = data
             if self.verbose:
                 pr(
-                    "- Grottserver - 16 - Ping response:\n"
+                    "- GrottServer - 16 - Ping response:\n"
                     + format_multi_line("\t", response)
                 )
 
@@ -1087,7 +1087,7 @@ class GrottServerHandler(StreamRequestHandler):
         elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
             # if datarecord send ack.
             if self.verbose:
-                pr("- Grottserver - " + header[12:16] + " data record received")
+                pr("- GrottServer - " + header[12:16] + " data record received")
 
             # forward data for growatt
             if self.qname in self.forward_queue:
@@ -1106,7 +1106,7 @@ class GrottServerHandler(StreamRequestHandler):
                 response = headerackx + crc16.to_bytes(2, "big")
 
             if self.verbose:
-                pr("- Grottserver - Response:\n" + format_multi_line("\t", response))
+                pr("- GrottServer - Response:\n" + format_multi_line("\t", response))
 
             if header[14:16] == "03":
                 # init record register logger/inverter id (including sessionid?)
@@ -1130,7 +1130,7 @@ class GrottServerHandler(StreamRequestHandler):
                     if prev_qname != self.qname:
                         self.shutdown_queue[prev_qname].put_nowait(True)
                         pr(
-                            f"- Grottserver - Shutdown previous connection {prev_qname} for {loggerid}"
+                            f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
                         )
 
                 # we need to confirm before we update the self.loggerreg
@@ -1161,12 +1161,12 @@ class GrottServerHandler(StreamRequestHandler):
                     loggerid,
                 )
                 if self.verbose:
-                    pr("- Grottserver 03 announce data record processed")
+                    pr("- GrottServer 03 announce data record processed")
 
         elif header[14:16] in ("19", "05", "06", "18"):
             if self.verbose:
                 pr(
-                    "- Grottserver - "
+                    "- GrottServer - "
                     + header[12:16]
                     + " record received, no response needed"
                 )
@@ -1217,7 +1217,7 @@ class GrottServerHandler(StreamRequestHandler):
         elif header[14:16] in ("10"):
             if self.verbose:
                 pr(
-                    "\t - Grottserver - "
+                    "\t - GrottServer - "
                     + header[12:16]
                     + " record received, no response needed"
                 )
@@ -1239,13 +1239,13 @@ class GrottServerHandler(StreamRequestHandler):
 
         else:
             if self.verbose:
-                pr("- Grottserver - Unknown record received:")
+                pr("- GrottServer - Unknown record received:")
             response = None
 
         if response is not None:
             if self.verbose:
                 pr(
-                    "- Grottserver - Put response on queue: ",
+                    "- GrottServer - Put response on queue: ",
                     self.qname,
                     " msg:\n" + format_multi_line("\t", response),
                 )
@@ -1291,6 +1291,6 @@ class Server:
             http_server_thread.join()
             device_server_thread.join()
         except KeyboardInterrupt:
-            pr("- Grottserver - KeyboardInterrupt received, shutting down")
+            pr("- GrottServer - KeyboardInterrupt received, shutting down")
             http_server.shutdown()
             device_server.shutdown()
