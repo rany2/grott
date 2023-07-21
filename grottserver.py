@@ -169,11 +169,11 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         if authorization is None:
             return False
 
-        if authorization.split(" ")[0] != "Bearer":
+        if not authorization.startswith("Bearer "):
             return False
 
         token_hash = hashlib.sha256(
-            " ".join(authorization.split(" ")[1:]).encode("utf-8")
+            authorization[len("Bearer ") :].encode("utf-8")
         ).hexdigest()
         if token_hash.lower() != token.lower():
             return False
@@ -396,11 +396,33 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             # responseno = f"{self.conf.sendseq:04x}"
             regkey = f"{int(register):04x}"
 
-            with self.register_mutex[qname]:
+            register_mutex = self.register_mutex.get(qname, None)
+            if register_mutex is None:
+                responsetxt = b"datalogger not found\r\n"
+                responserc = 400
+                responseheader = "text/plain"
+                htmlsendresp(self, responserc, responseheader, responsetxt)
+                return
+
+            with register_mutex:
                 # clear all possible responses for this command to ensure no old responses are returned.
                 queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
                 # queue command
-                self.send_queuereg[qname].put(body)
+                try:
+                    self.send_queuereg[qname].put(body)
+                except KeyError:
+                    # If the queue is not found, it means that the datalogger has disconnected.
+                    #
+                    # We need to remove the datalogger from the loggerreg and commandresponse.
+                    self.commandresponse.pop(qname, None)
+                    self.register_mutex.pop(qname, None)
+
+                    # Send an error response
+                    responsetxt = b"datalogger not found\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
 
                 try:
                     comresp = queue_commandrespget(
@@ -689,11 +711,34 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 regkey = f"{int(register):04x}"
             qname = self.get_qname(dataloggerid)
 
-            with self.register_mutex[qname]:
+            register_mutex = self.register_mutex.get(qname, None)
+            if register_mutex is None:
+                responsetxt = b"datalogger not found\r\n"
+                responserc = 400
+                responseheader = "text/plain"
+                htmlsendresp(self, responserc, responseheader, responsetxt)
+                return
+
+            with register_mutex:
                 # clear all possible responses for this command to ensure no old responses are returned.
                 queue_commandrespclear(self.commandresponse, qname, sendcommand, regkey)
                 # queue command
-                self.send_queuereg[qname].put(body)
+                try:
+                    self.send_queuereg[qname].put(body)
+                except KeyError:
+                    # If the queue is not found, it means that the datalogger has disconnected.
+                    #
+                    # We need to remove the datalogger from the loggerreg and commandresponse.
+                    self.commandresponse.pop(qname, None)
+                    self.register_mutex.pop(qname, None)
+
+                    # Send an error response
+                    responsetxt = b"datalogger not found\r\n"
+                    responserc = 400
+                    responseheader = "text/plain"
+                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    return
+
                 responseno = f"{self.conf.sendseq:04x}"
 
                 # wait for response
@@ -960,25 +1005,19 @@ class GrottServerHandler(StreamRequestHandler):
 
         client_address, client_port = self.client_address
 
-        if self.qname in self.send_queuereg:
-            queue_clear(self.send_queuereg[self.qname])
-            self.send_queuereg[self.qname].put(None)
-            del self.send_queuereg[self.qname]
+        if item := self.send_queuereg.pop(self.qname, None):
+            queue_clear(item)
+            item.put(None)
 
-        if self.qname in self.commandresponse:
-            del self.commandresponse[self.qname]
+        self.commandresponse.pop(self.qname, None)
+        self.register_mutex.pop(self.qname, None)
 
-        if self.qname in self.register_mutex:
-            del self.register_mutex[self.qname]
+        if item := self.shutdown_queue.pop(self.qname, None):
+            queue_clear(item)
 
-        if self.qname in self.shutdown_queue:
-            queue_clear(self.shutdown_queue[self.qname])
-            del self.shutdown_queue[self.qname]
-
-        if self.qname in self.forward_queue:
-            queue_clear(self.forward_queue[self.qname])
-            self.forward_queue[self.qname].put(None)
-            del self.forward_queue[self.qname]
+        if item := self.forward_queue.pop(self.qname, None):
+            queue_clear(item)
+            item.put(None)
 
         for key in self.loggerreg.keys():
             if (
