@@ -1131,10 +1131,11 @@ class GrottServerHandler(StreamRequestHandler):
                 if loggerid in self.loggerreg:
                     prev_qname = f"{self.loggerreg[loggerid]['ip']}_{self.loggerreg[loggerid]['port']}"
                     if prev_qname != self.qname:
-                        self.shutdown_queue[prev_qname].put_nowait(True)
-                        pr(
-                            f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
-                        )
+                        if item := self.shutdown_queue.pop(prev_qname, None):
+                            item.put_nowait(True)
+                            pr(
+                                f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
+                            )
 
                 # we need to confirm before we update the self.loggerreg
                 # so we must wait to make sure response is sent before any
