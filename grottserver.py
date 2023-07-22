@@ -103,11 +103,11 @@ def queue_clear(q: queue.Queue):
         q.unfinished_tasks = 0
 
 
-__QUEUE_COMMAND_RESP_CREATE = threading.Lock()
+_QUEUE_COMMAND_RESP_CREATE_MUTEX = threading.Lock()
 
 
 def queue_commandrespcreate(commandresponse, qname, sendcommand, regkey):
-    with __QUEUE_COMMAND_RESP_CREATE:
+    with _QUEUE_COMMAND_RESP_CREATE_MUTEX:
         if sendcommand not in commandresponse[qname]:
             commandresponse[qname][sendcommand] = {}
 
@@ -827,6 +827,8 @@ class GrottServer(ThreadingTCPServer):
         pr(f"- Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
+_LOGGERREG_CREATE_MUTEX = threading.Lock()
+
 class GrottServerHandler(StreamRequestHandler):
     def __init__(
         self,
@@ -1019,14 +1021,15 @@ class GrottServerHandler(StreamRequestHandler):
             queue_clear(item)
             item.put(None)
 
-        for key in self.loggerreg.keys():
-            if (
-                self.loggerreg[key]["ip"] == client_address
-                and self.loggerreg[key]["port"] == client_port
-            ):
-                del self.loggerreg[key]
-                pr(f"- GrottServer - config info deleted for {key}")
-                break
+        with _LOGGERREG_CREATE_MUTEX:
+            for key in self.loggerreg.keys():
+                if (
+                    self.loggerreg[key]["ip"] == client_address
+                    and self.loggerreg[key]["port"] == client_port
+                ):
+                    del self.loggerreg[key]
+                    pr(f"- GrottServer - config info deleted for {key}")
+                    break
 
     def process_data(self, data):
         # Display data
@@ -1138,21 +1141,22 @@ class GrottServerHandler(StreamRequestHandler):
                 # possible command from HTTP API
                 self.send_queuereg[self.qname].put(response)
 
-                if not loggerid in self.loggerreg:
-                    self.loggerreg[loggerid] = {}
+                with _LOGGERREG_CREATE_MUTEX:
+                    if not loggerid in self.loggerreg:
+                        self.loggerreg[loggerid] = {}
 
-                self.loggerreg[loggerid].update(
-                    {
-                        "ip": self.client_address[0],
-                        "port": self.client_address[1],
-                        "protocol": header[6:8],
-                    }
-                )
+                    self.loggerreg[loggerid].update(
+                        {
+                            "ip": self.client_address[0],
+                            "port": self.client_address[1],
+                            "protocol": header[6:8],
+                        }
+                    )
 
-                # add invertid
-                self.loggerreg[loggerid].update(
-                    {inverterid: {"inverterno": header[12:14], "power": 0}}
-                )
+                    # add invertid
+                    self.loggerreg[loggerid].update(
+                        {inverterid: {"inverterno": header[12:14], "power": 0}}
+                    )
 
                 # Create time command and put on queue
                 response = createtimecommand(
