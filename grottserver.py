@@ -82,7 +82,7 @@ def createtimecommand(conf, protocol, loggerid):
     body = header + body
     body = bytes.fromhex(body)
     if conf.verbose:
-        pr("- Grottserver - Time plain body:\n" + format_multi_line("\t", body))
+        pr("- GrottServer - Time plain body:\n" + format_multi_line("\t", body))
 
     if protocol != "02":
         # encrypt message
@@ -91,7 +91,7 @@ def createtimecommand(conf, protocol, loggerid):
         body = bytes.fromhex(body) + crc16.to_bytes(2, "big")
 
     if conf.verbose:
-        pr("- Grottserver - Time command created:\n" + format_multi_line("\t", body))
+        pr("- GrottServer - Time command created:\n" + format_multi_line("\t", body))
 
     return body
 
@@ -824,7 +824,7 @@ class GrottServer(ThreadingTCPServer):
         self.allow_reuse_address = True
         self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
-        pr(f"- Grottserver - Ready to listen at: {conf.grottip}:{conf.grottport}")
+        pr(f"- GrottServer - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
 _LOGGERREG_CREATE_MUTEX = threading.Lock()
