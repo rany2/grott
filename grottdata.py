@@ -627,7 +627,7 @@ def procdata(conf, data):
             except ConnectionRefusedError:
                 if conf.verbose:
                     pr("- MQTT connection refused by target")
-            except BaseException as error:
+            except Exception as error:
                 if conf.verbose:
                     pr("- MQTT send failed:", str(error))
         else:
