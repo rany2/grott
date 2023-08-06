@@ -1058,7 +1058,7 @@ class GrottServerHandler(StreamRequestHandler):
 
         # Create header
         header = "".join(f"{n:02x}" for n in data[0:8])
-        sequencenumber = header[0:4]
+        # sequencenumber = header[0:4]
         protocol = header[6:8]
         command = header[14:16]
         if protocol in ("05", "06"):
