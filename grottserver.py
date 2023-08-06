@@ -822,6 +822,7 @@ class GrottServer(ThreadingTCPServer):
 
 _LOGGERREG_CREATE_MUTEX = threading.Lock()
 
+
 class GrottServerHandler(StreamRequestHandler):
     def __init__(
         self,
@@ -1215,7 +1216,9 @@ class GrottServerHandler(StreamRequestHandler):
 
         elif header[14:16] in ("10",):
             if self.verbose:
-                pr(f"- GrottServer - {header[12:16]} record received, no response needed")
+                pr(
+                    f"- GrottServer - {header[12:16]} record received, no response needed"
+                )
 
             startregister = int(result_string[76:80], 16)
             endregister = int(result_string[80:84], 16)
