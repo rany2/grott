@@ -1074,7 +1074,7 @@ class GrottServerHandler(StreamRequestHandler):
         loggerid = codecs.decode(loggerid, "hex").decode("ascii")
 
         # Prepare response
-        if header[14:16] in ("16"):
+        if header[14:16] in ("16",):
             # if ping send data as reply
             response = data
             if self.verbose:
@@ -1177,7 +1177,7 @@ class GrottServerHandler(StreamRequestHandler):
                 )
 
             offset = 0
-            if protocol in ("06"):
+            if protocol in ("06",):
                 offset = 40
 
             register = int(result_string[36 + offset : 40 + offset], 16)
@@ -1219,7 +1219,7 @@ class GrottServerHandler(StreamRequestHandler):
 
             response = None
 
-        elif header[14:16] in ("10"):
+        elif header[14:16] in ("10",):
             if self.verbose:
                 pr(
                     "\t - GrottServer - "
