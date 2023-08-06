@@ -155,10 +155,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pr("- GrottHttpServer - %s - %s" % (self.address_string(), format % args))
 
-    def send_header(self, keyword, value):
+    def send_header(self, keyword, value, *args, **kwargs):
         if keyword.lower() == "server":
             return
-        super().send_header(keyword, value)
+        super().send_header(keyword, value, *args, **kwargs)
 
     def authorized(self):
         token = self.conf.httptoken
