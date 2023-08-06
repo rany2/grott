@@ -1077,17 +1077,19 @@ class GrottServerHandler(StreamRequestHandler):
                 )
 
             # forward data for growatt
-            if self.qname in self.forward_queue:
-                self.forward_queue[self.qname].put_nowait(data)
+            fwd_queue = self.forward_queue.get(self.qname, None)
+            if fwd_queue is not None:
+                fwd_queue.put_nowait(data)
 
         elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
             # if datarecord send ack.
             if self.verbose:
-                pr("- GrottServer - " + header[12:16] + " data record received")
+                pr(f"- GrottServer - {header[12:16]} data record received")
 
             # forward data for growatt
-            if self.qname in self.forward_queue:
-                self.forward_queue[self.qname].put_nowait(data)
+            fwd_queue = self.forward_queue.get(self.qname, None)
+            if fwd_queue is not None:
+                fwd_queue.put_nowait(data)
 
             # create ack response
             if header[6:8] == "02":
