@@ -88,7 +88,7 @@ class Conf:
         self.httphost = "0.0.0.0"
         self.httpport = 5782
         self.httptoken = None
-        self.registerreadtimeout = 7.0
+        self.registerreadtimeout = 15.0
         self.registerwritetimeout = 15.0
         self.firstping = False
         self.sendseq = 1
