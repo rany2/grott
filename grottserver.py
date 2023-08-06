@@ -21,7 +21,7 @@ import libscrc
 import pytz
 
 from grottdata import decrypt, format_multi_line, pr, procdata
-from grottproxy import Forward, is_record_valid
+from grottproxy import Forward, is_record_valid, queue_put_nowait_no_exc
 
 # Version:
 verrel = "0.0.12a"
@@ -888,7 +888,7 @@ class GrottServerHandler(StreamRequestHandler):
             pr(f"- GrottServer - Register mutex created for: {self.qname}")
 
         # on any value, shutdown everything
-        self.shutdown_queue[self.qname] = queue.Queue()
+        self.shutdown_queue[self.qname] = queue.Queue(1)
 
         # create and start read thread
         read_thread = threading.Thread(
@@ -937,10 +937,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            try:
-                self.shutdown_queue[self.qname].put_nowait(True)
-            except KeyError:
-                pass
+            if item := self.shutdown_queue.pop(self.qname, None):
+                queue_put_nowait_no_exc(item, True)
 
     def write_data(self):
         try:
@@ -953,10 +951,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            try:
-                self.shutdown_queue[self.qname].put_nowait(True)
-            except KeyError:
-                pass
+            if item := self.shutdown_queue.pop(self.qname, None):
+                queue_put_nowait_no_exc(item, True)
 
     def forward_data(self):
         while True:
@@ -1131,7 +1127,7 @@ class GrottServerHandler(StreamRequestHandler):
                     prev_qname = f"{loggerreg.get('ip')}_{loggerreg.get('port')}"
                     if prev_qname != self.qname:
                         if item := self.shutdown_queue.pop(prev_qname, None):
-                            item.put_nowait(True)
+                            queue_put_nowait_no_exc(item, True)
                             pr(
                                 f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
                             )
