@@ -965,6 +965,7 @@ class GrottServerHandler(StreamRequestHandler):
         return fsock, host, port
 
     def forward_data(self):
+        prelude = b""
         while True:
             data = self.forward_queue[self.qname].get()
             # when data is None, it means the forward socket
@@ -977,9 +978,21 @@ class GrottServerHandler(StreamRequestHandler):
                     except OSError:
                         pass
                 return
-            self.forward_data_op(data)
 
-    def forward_data_op(self, data, attempts=0):
+            # if 03 command, it is prelude and needs to be
+            # sent whenever we retry sending data to growatt.
+            header = "".join(f"{n:02x}" for n in data[0:8])
+            if header[14:16] == "03":
+                prelude = data
+                continue
+            elif not prelude:
+                continue
+
+            # this operation requires that prelude is set
+            # which the above code ensures prior to calling
+            self.forward_data_op(data, prelude)
+
+    def forward_data_op(self, data, prelude, attempts=0):
         fsock, host, port = self.forward_input
         try:
             if self.verbose:
@@ -987,6 +1000,7 @@ class GrottServerHandler(StreamRequestHandler):
 
             if not isinstance(fsock, socket.socket):
                 fsock, host, port = self.forward_start()
+                fsock.sendall(prelude)
 
             # empty receive buffer to avoid TCP window full
             # but only if there is data to receive (i.e.
@@ -1011,11 +1025,17 @@ class GrottServerHandler(StreamRequestHandler):
                 except OSError:
                     pass
 
-            self.forward_start()
-            if attempts < self.conf.forwardretry:
-                self.forward_data_op(data, attempts + 1)
-            else:
+            try:
+                fsock, host, port = self.forward_start()
+                fsock.sendall(prelude)
+            except OSError:
+                attempts += 1
+
+            if attempts >= self.conf.forwardretry:
                 pr(f"- GrottServer - Forward failed: {host}:{port}")
+                return
+
+            self.forward_data_op(data, attempts + 1)
 
     def close_connection(self):
         pr(
