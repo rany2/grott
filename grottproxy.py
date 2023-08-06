@@ -110,7 +110,9 @@ class GrottProxyHandler(StreamRequestHandler):
         super().__init__(*args)
 
     def handle(self):
-        pr("- Grottproxy - Client connected:", self.client_address)
+        pr(
+            f"- Grottproxy - Client connected: {self.client_address[0]}:{self.client_address[1]}"
+        )
 
         self.forward = Forward(self.conf.timeout).start(*self.forward_to)
         if not self.forward:
@@ -228,7 +230,9 @@ class GrottProxyHandler(StreamRequestHandler):
                 pr("- Data less then minimum record length, data not processed")
 
     def close_connection(self):
-        pr("- Grottproxy - Close connection:", self.client_address)
+        pr(
+            f"- Grottproxy - Close connection: {self.client_address[0]}:{self.client_address[1]}"
+        )
         self.send_to_device.put_nowait(None)
         self.send_to_fwd.put_nowait(None)
         if self.forward:
