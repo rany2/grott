@@ -293,7 +293,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 command = urlquery["command"][0]
                 if command in ("register",):
                     if self.verbose:
-                        pr("- Grott - get command:", command)
+                        pr("- GrottHttpServer - get command:", command)
                 else:
                     # no valid command entered
                     responsetxt = b"no valid command entered\r\n"
@@ -749,7 +749,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     )
                     if self.verbose:
                         pr(
-                            "- Grotthttperver - Commandresponse:",
+                            "- GrottHttpServer - Commandresponse:",
                             responseno,
                             register,
                             self.commandresponse[qname][sendcommand][regkey],
@@ -759,7 +759,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     responseheader = "text/plain"
                     if self.verbose:
                         pr(
-                            "- Grott - datalogger command response:",
+                            "- GrottHttpServer - datalogger command response:",
                             responserc,
                             responsetxt,
                             responseheader,
