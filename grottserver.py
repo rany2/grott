@@ -910,7 +910,7 @@ class GrottServerHandler(StreamRequestHandler):
             self.forward_queue[self.qname] = queue.Queue()
 
             forward_thread = threading.Thread(
-                target=self.forward_data,
+                target=self.forward_data_handler,
             )
             forward_thread.daemon = True
             forward_thread.start()
@@ -956,7 +956,7 @@ class GrottServerHandler(StreamRequestHandler):
             if item := self.shutdown_queue.pop(self.qname, None):
                 queue_put_nowait_no_exc(item, True)
 
-    def forward_start(self):
+    def forward_connection_start(self):
         fsock, host, port = self.forward_input
         fsock = Forward().start(host, port)
         self.forward_input = (fsock, host, port)
@@ -964,7 +964,7 @@ class GrottServerHandler(StreamRequestHandler):
             pr(f"- GrottServer - Forward started: {host}:{port}")
         return fsock, host, port
 
-    def forward_data(self):
+    def forward_data_handler(self):
         prelude = b""
         while True:
             data = self.forward_queue[self.qname].get()
@@ -993,13 +993,18 @@ class GrottServerHandler(StreamRequestHandler):
             self.forward_data_op(data, prelude)
 
     def forward_data_op(self, data, prelude, attempts=0):
+        if not isinstance(prelude, bytes) or not prelude:
+            raise ValueError("prelude must be a non-empty bytes object")
+        if not isinstance(data, bytes) or not data:
+            raise ValueError("data must be a non-empty bytes object")
+
         fsock, host, port = self.forward_input
         try:
             if self.verbose:
                 pr(f"- GrottServer - Sending forward data for {host}:{port}")
 
             if not isinstance(fsock, socket.socket):
-                fsock, host, port = self.forward_start()
+                fsock, host, port = self.forward_connection_start()
                 fsock.sendall(prelude)
 
             # empty receive buffer to avoid TCP window full
@@ -1026,7 +1031,7 @@ class GrottServerHandler(StreamRequestHandler):
                     pass
 
             try:
-                fsock, host, port = self.forward_start()
+                fsock, host, port = self.forward_connection_start()
                 fsock.sendall(prelude)
             except OSError:
                 attempts += 1
