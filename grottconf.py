@@ -95,7 +95,6 @@ class Conf:
         self.serverforward = False
         self.httptimeout = 10.0
         self.forwardretry = 1
-        self.forwardtimeout = 2.0
         self.senddelay = 0.01
 
         # Growatt server default
@@ -354,8 +353,6 @@ class Conf:
             self.serverforward = config.getboolean("Server", "serverforward")
         if config.has_option("Server", "forwardretry"):
             self.forwardretry = config.getint("Server", "forwardretry")
-        if config.has_option("Server", "forwardtimeout"):
-            self.forwardtimeout = config.getfloat("Server", "forwardtimeout")
         if config.has_option("Server", "senddelay"):
             self.senddelay = config.getfloat("Server", "senddelay")
 

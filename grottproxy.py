@@ -51,21 +51,16 @@ def is_record_valid(xdata):
 
 
 class Forward:
-    def __init__(self, timeout):
+    def __init__(self):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.forward.settimeout(timeout)
 
     def start(self, host, port):
-        try:
-            self.forward.connect((host, port))
+        self.forward.connect((host, port))
 
-            # Disable Nagle's Algorithm
-            self.forward.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+        # Disable Nagle's Algorithm
+        self.forward.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
 
-            return self.forward
-        except Exception as e:
-            pr(f"- GrottProxy - Forward error: {e}")
-            return False
+        return self.forward
 
 
 def queue_put_nowait_no_exc(q: queue.Queue, data) -> None:
@@ -114,8 +109,9 @@ class GrottProxyHandler(StreamRequestHandler):
             f"- GrottProxy - Client connected: {self.client_address[0]}:{self.client_address[1]}"
         )
 
-        self.forward = Forward(self.conf.timeout).start(*self.forward_to)
-        if not self.forward:
+        try:
+            self.forward = Forward().start(*self.forward_to)
+        except OSError:
             pr("- GrottProxy - Forward connection failed:", ":".join(self.forward_to))
             return
 
@@ -201,10 +197,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 data = self.send_to_fwd.get()
                 if not data:
                     break
-                try:
-                    self.forward.send(data)
-                except OSError:
-                    break
+                self.forward.sendall(data)
         except OSError:
             pr("- GrottProxy - Forward write error")
         finally:

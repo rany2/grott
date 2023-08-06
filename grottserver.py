@@ -859,7 +859,7 @@ class GrottServerHandler(StreamRequestHandler):
         # setup forwarding to Growatt server if configured
         if self.conf.serverforward:
             self.forward_input = (
-                False,
+                None,
                 self.conf.growattip,
                 self.conf.growattport,
             )
@@ -956,6 +956,14 @@ class GrottServerHandler(StreamRequestHandler):
             if item := self.shutdown_queue.pop(self.qname, None):
                 queue_put_nowait_no_exc(item, True)
 
+    def forward_start(self):
+        fsock, host, port = self.forward_input
+        fsock = Forward().start(host, port)
+        self.forward_input = (fsock, host, port)
+        if self.verbose:
+            pr(f"- GrottServer - Forward started: {host}:{port}")
+        return fsock, host, port
+
     def forward_data(self):
         while True:
             data = self.forward_queue[self.qname].get()
@@ -976,21 +984,34 @@ class GrottServerHandler(StreamRequestHandler):
         try:
             if self.verbose:
                 pr(f"- GrottServer - Sending forward data for {host}:{port}")
-            if isinstance(fsock, socket.socket):
-                fsock.send(data)
+
+            if not isinstance(fsock, socket.socket):
+                fsock, host, port = self.forward_start()
+
+            # empty receive buffer to avoid TCP window full
+            # but only if there is data to receive (i.e.
+            # do not block on recv)
+            try:
+                fsock.recv(
+                    fsock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF),
+                    socket.MSG_DONTWAIT,
+                )
+            except BlockingIOError:
+                pass
+
+            # send data to growatt
+            fsock.sendall(data)
+
             if self.verbose:
                 pr(f"- GrottServer - Forward data sent for {host}:{port}")
         except OSError:
-            try:
-                if isinstance(socket.socket):
+            if isinstance(fsock, socket.socket):
+                try:
                     fsock.shutdown(socket.SHUT_WR)
-            except OSError:
-                pass
+                except OSError:
+                    pass
 
-            forward = Forward(self.conf.forwardtimeout).start(host, port)
-            self.forward_input = (forward, host, port)
-            if self.verbose:
-                pr(f"- GrottServer - Forward started: {host}:{port}")
+            self.forward_start()
             if attempts < self.conf.forwardretry:
                 self.forward_data_op(data, attempts + 1)
             else:
