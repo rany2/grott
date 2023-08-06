@@ -1237,7 +1237,12 @@ class GrottServerHandler(StreamRequestHandler):
 
         else:
             if self.verbose:
-                pr("- GrottServer - Unknown record received:")
+                pr(
+                    "- GrottServer - Unknown record received:"
+                    + header[12:16]
+                    + "\n"
+                    + format_multi_line("\t", data)
+                )
             response = None
 
         if response is not None:
