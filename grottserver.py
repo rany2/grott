@@ -1124,8 +1124,7 @@ class GrottServerHandler(StreamRequestHandler):
                 inverterid = codecs.decode(inverterid, "hex").decode("ascii")
 
                 # check if loggerid is already in loggerreg
-                loggerreg = self.loggerreg.get(loggerid, None)
-                if loggerreg is not None:
+                if loggerreg := self.loggerreg.get(loggerid, None):
                     prev_qname = f"{loggerreg.get('ip')}_{loggerreg.get('port')}"
                     if prev_qname != self.qname:
                         if item := self.shutdown_queue.pop(prev_qname, None):
