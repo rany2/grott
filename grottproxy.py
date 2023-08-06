@@ -64,7 +64,7 @@ class Forward:
 
             return self.forward
         except Exception as e:
-            pr(f"- Grottproxy - Forward error: {e}")
+            pr(f"- GrottProxy - Forward error: {e}")
             return False
 
 
@@ -89,7 +89,7 @@ class GrottProxy(ThreadingTCPServer):
         self.allow_reuse_address = True
         self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
-        pr(f"- Grottproxy - Ready to listen at: {conf.grottip}:{conf.grottport}")
+        pr(f"- GrottProxy - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
 
 class GrottProxyHandler(StreamRequestHandler):
@@ -111,12 +111,12 @@ class GrottProxyHandler(StreamRequestHandler):
 
     def handle(self):
         pr(
-            f"- Grottproxy - Client connected: {self.client_address[0]}:{self.client_address[1]}"
+            f"- GrottProxy - Client connected: {self.client_address[0]}:{self.client_address[1]}"
         )
 
         self.forward = Forward(self.conf.timeout).start(*self.forward_to)
         if not self.forward:
-            pr("- Grottproxy - Forward connection failed:", ":".join(self.forward_to))
+            pr("- GrottProxy - Forward connection failed:", ":".join(self.forward_to))
             return
 
         read_thread = threading.Thread(
@@ -160,7 +160,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 data += more_data
                 self.process_data(data, queues=[self.send_to_fwd])
         except Exception:
-            pr("- Grottproxy - Datalogger read error")
+            pr("- GrottProxy - Datalogger read error")
         finally:
             queue_put_nowait_no_exc(self.shutdown_queue, True)
 
@@ -173,7 +173,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 self.wfile.write(data)
                 self.wfile.flush()
         except Exception:
-            pr("- Grottproxy - Datalogger write error")
+            pr("- GrottProxy - Datalogger write error")
         finally:
             queue_put_nowait_no_exc(self.shutdown_queue, True)
 
@@ -191,7 +191,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 data += more_data
                 self.process_data(data, queues=[self.send_to_device])
         except OSError:
-            pr("- Grottproxy - Forward read error")
+            pr("- GrottProxy - Forward read error")
         finally:
             queue_put_nowait_no_exc(self.shutdown_queue, True)
 
@@ -206,7 +206,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 except OSError:
                     break
         except OSError:
-            pr("- Grottproxy - Forward write error")
+            pr("- GrottProxy - Forward write error")
         finally:
             queue_put_nowait_no_exc(self.shutdown_queue, True)
 
@@ -214,7 +214,7 @@ class GrottProxyHandler(StreamRequestHandler):
         # test if record is not corrupted
         vdata = "".join(f"{n:02x}" for n in data)
         if not is_record_valid(vdata):
-            pr("- Grottproxy - Invalid data record received, not processing")
+            pr("- GrottProxy - Invalid data record received, not processing")
             # Create response if needed?
             # self.send_queuereg[qname].put(response)
             return
@@ -231,7 +231,7 @@ class GrottProxyHandler(StreamRequestHandler):
 
     def close_connection(self):
         pr(
-            f"- Grottproxy - Close connection: {self.client_address[0]}:{self.client_address[1]}"
+            f"- GrottProxy - Close connection: {self.client_address[0]}:{self.client_address[1]}"
         )
         self.send_to_device.put_nowait(None)
         self.send_to_fwd.put_nowait(None)
@@ -255,5 +255,5 @@ class Proxy:
             proxy_server_thread.start()
             proxy_server_thread.join()
         except KeyboardInterrupt:
-            pr("- Grottproxy - KeyboardInterrupt received, shutting down")
+            pr("- GrottProxy - KeyboardInterrupt received, shutting down")
             proxy_server.shutdown()
