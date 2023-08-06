@@ -253,8 +253,9 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         urlquery = parse_qs(url.query)
 
         # only allow files from current directory
-        if self.path[0] == "/":
-            self.path = self.path[1 : len(self.path)]
+        if not (len(self.path) > 0 and self.path[0] == "/"):
+            return
+        self.path = self.path[1 : len(self.path)]
 
         # strip query string
         self.path = self.path.split("?")[0]
@@ -271,19 +272,12 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             return
 
         if self.path in ("datalogger", "inverter"):
+            if self.verbose:
+                pr(f"- GrottHttpServer - {self.path} GET received: {urlquery}")
+
             if self.path == "datalogger":
-                if self.verbose:
-                    pr(
-                        "- GrottHttpServer - datalogger get received: ",
-                        urlquery,
-                    )
                 sendcommand = "19"
             else:
-                if self.verbose:
-                    pr(
-                        "- GrottHttpServer - inverter get received: ",
-                        urlquery,
-                    )
                 sendcommand = "05"
 
             if not urlquery:
@@ -473,21 +467,20 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         urlquery = parse_qs(url.query)
 
         # only allow files from current directory
-        if self.path[0] == "/":
-            self.path = self.path[1 : len(self.path)]
+        if not (len(self.path) > 0 and self.path[0] == "/"):
+            return
+        self.path = self.path[1 : len(self.path)]
+
+        # strip query string
         self.path = self.path.split("?")[0]
 
         if self.path in ("datalogger", "inverter"):
+            if self.verbose:
+                pr(f"- GrottHttpServer - {self.path} PUT received: {urlquery}")
+
             if self.path == "datalogger":
-                if self.verbose:
-                    pr(
-                        "- GrottHttpServer - datalogger PUT received:",
-                        urlquery,
-                    )
                 sendcommand = "18"
             else:
-                if self.verbose:
-                    pr("- GrottHttpServer - inverter PUT received:", urlquery)
                 # Must be an inverter. Use 06 for now. May change to 10 later
                 sendcommand = "06"
 
@@ -504,7 +497,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 command = urlquery["command"][0]
                 if command in ("register", "multiregister", "datetime"):
                     if self.verbose:
-                        pr("- GrottHttpServer - PUT command:", command)
+                        pr(f"- GrottHttpServer - PUT command: {command}")
                 else:
                     responsetxt = b"no valid command entered\r\n"
                     responserc = 400
