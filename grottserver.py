@@ -961,9 +961,11 @@ class GrottServerHandler(StreamRequestHandler):
     def forward_data(self):
         while True:
             data = self.forward_queue[self.qname].get()
+            # when data is None, it means the forward socket
+            # needs to be closed for clean shutdown.
             if data is None:
                 fsock, _, _ = self.forward_input
-                if not isinstance(fsock, bool):
+                if isinstance(fsock, socket.socket):
                     try:
                         fsock.shutdown(socket.SHUT_WR)
                     except OSError:
@@ -976,19 +978,21 @@ class GrottServerHandler(StreamRequestHandler):
         try:
             if self.verbose:
                 pr(f"- GrottServer - Sending forward data for {host}:{port}")
-            fsock.send(data)
+            if isinstance(fsock, socket.socket):
+                fsock.send(data)
             if self.verbose:
                 pr(f"- GrottServer - Forward data sent for {host}:{port}")
-        except (OSError, AttributeError):
+        except OSError:
             try:
-                fsock.shutdown(socket.SHUT_WR)
-            except (OSError, AttributeError):
+                if isinstance(socket.socket):
+                    fsock.shutdown(socket.SHUT_WR)
+            except OSError:
                 pass
 
             forward = Forward(self.conf.forwardtimeout).start(host, port)
+            self.forward_input = (forward, host, port)
             if self.verbose:
                 pr(f"- GrottServer - Forward started: {host}:{port}")
-            self.forward_input = (forward, host, port)
             if attempts < self.conf.forwardretry:
                 self.forward_data_op(data, attempts + 1)
             else:
