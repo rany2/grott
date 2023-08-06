@@ -15,6 +15,7 @@ from collections import defaultdict
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
+from time import sleep
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -948,6 +949,7 @@ class GrottServerHandler(StreamRequestHandler):
                     break
                 self.wfile.write(data)
                 self.wfile.flush()
+                sleep(self.conf.senddelay)
         except Exception:
             pass
         finally:
