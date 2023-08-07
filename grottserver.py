@@ -1001,7 +1001,7 @@ class GrottServerHandler(StreamRequestHandler):
         fsock, host, port = self.forward_input
         try:
             if self.verbose:
-                pr(f"- GrottServer - Sending forward data for {host}:{port}")
+                pr(f"- GrottServer - Sending forward data to {host}:{port}")
 
             if not isinstance(fsock, socket.socket):
                 fsock, host, port = self.forward_connection_start()
@@ -1022,7 +1022,7 @@ class GrottServerHandler(StreamRequestHandler):
             fsock.sendall(data)
 
             if self.verbose:
-                pr(f"- GrottServer - Forward data sent for {host}:{port}")
+                pr(f"- GrottServer - Forward data sent to {host}:{port}")
         except OSError:
             if isinstance(fsock, socket.socket):
                 try:
