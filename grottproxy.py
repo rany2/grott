@@ -63,13 +63,6 @@ class Forward:
         return self.forward
 
 
-def queue_put_nowait_no_exc(q: queue.Queue, data) -> None:
-    try:
-        q.put_nowait(data)
-    except queue.Full:
-        pass
-
-
 class GrottProxy(ThreadingTCPServer):
     """This wrapper will create a Growatt server where the handler has access to the config"""
 
@@ -96,7 +89,7 @@ class GrottProxyHandler(StreamRequestHandler):
         self.send_to_device = queue.Queue()
         self.send_to_fwd = queue.Queue()
 
-        self.shutdown_queue = queue.Queue(1)
+        self.shutdown_event = threading.Event()
 
         # set variables for StreamRequestHandler's setup()
         self.timeout = conf.timeout
@@ -135,8 +128,8 @@ class GrottProxyHandler(StreamRequestHandler):
         fwd_write_thread.daemon = True
         fwd_write_thread.start()
 
-        # wait for self.shutdown_queue to be filled, then shutdown
-        self.shutdown_queue.get()
+        # wait for self.shutdown_event to be set
+        self.shutdown_event.wait()
 
     def finish(self) -> None:
         self.close_connection()
@@ -158,7 +151,7 @@ class GrottProxyHandler(StreamRequestHandler):
         except Exception:
             pr("- GrottProxy - Datalogger read error")
         finally:
-            queue_put_nowait_no_exc(self.shutdown_queue, True)
+            self.shutdown_event.set()
 
     def write_data(self):
         try:
@@ -171,7 +164,7 @@ class GrottProxyHandler(StreamRequestHandler):
         except Exception:
             pr("- GrottProxy - Datalogger write error")
         finally:
-            queue_put_nowait_no_exc(self.shutdown_queue, True)
+            self.shutdown_event.set()
 
     def fwd_read_data(self):
         try:
@@ -189,7 +182,7 @@ class GrottProxyHandler(StreamRequestHandler):
         except OSError:
             pr("- GrottProxy - Forward read error")
         finally:
-            queue_put_nowait_no_exc(self.shutdown_queue, True)
+            self.shutdown_event.set()
 
     def fwd_write_data(self):
         try:
@@ -201,7 +194,7 @@ class GrottProxyHandler(StreamRequestHandler):
         except OSError:
             pr("- GrottProxy - Forward write error")
         finally:
-            queue_put_nowait_no_exc(self.shutdown_queue, True)
+            self.shutdown_event.set()
 
     def process_data(self, data, queues):
         # test if record is not corrupted

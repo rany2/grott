@@ -22,7 +22,7 @@ import libscrc
 import pytz
 
 from grottdata import decrypt, format_multi_line, pr, procdata
-from grottproxy import Forward, is_record_valid, queue_put_nowait_no_exc
+from grottproxy import Forward, is_record_valid
 
 # Version:
 verrel = "0.0.12a"
@@ -809,12 +809,12 @@ class GrottServer(ThreadingTCPServer):
                 conf,
                 loggerreg,
                 commandresponse,
-                shutdown_queue,
+                shutdown_event,
                 register_mutex,
                 *args,
             )
 
-        shutdown_queue = {}
+        shutdown_event = {}
         self.allow_reuse_address = True
         self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
@@ -831,7 +831,7 @@ class GrottServerHandler(StreamRequestHandler):
         conf,
         loggerreg,
         commandresponse,
-        shutdown_queue,
+        shutdown_event,
         register_mutex,
         *args,
     ):
@@ -839,7 +839,7 @@ class GrottServerHandler(StreamRequestHandler):
         self.conf = conf
         self.loggerreg = loggerreg
         self.send_queuereg = send_queuereg
-        self.shutdown_queue = shutdown_queue
+        self.shutdown_event = shutdown_event
         self.forward_input = ()
         self.forward_queue = {}
         self.verbose = conf.verbose
@@ -889,7 +889,7 @@ class GrottServerHandler(StreamRequestHandler):
             pr(f"- GrottServer - Register mutex created for: {self.qname}")
 
         # on any value, shutdown everything
-        self.shutdown_queue[self.qname] = queue.Queue(1)
+        self.shutdown_event[self.qname] = threading.Event()
 
         # create and start read thread
         read_thread = threading.Thread(
@@ -915,8 +915,8 @@ class GrottServerHandler(StreamRequestHandler):
             forward_thread.daemon = True
             forward_thread.start()
 
-        # wait for self.shutdown_queue to be filled, then shutdown
-        self.shutdown_queue[self.qname].get()
+        # wait for self.shutdown_event to be set
+        self.shutdown_event[self.qname].wait()
 
     def finish(self) -> None:
         self.close_connection()
@@ -938,8 +938,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            if item := self.shutdown_queue.pop(self.qname, None):
-                queue_put_nowait_no_exc(item, True)
+            if item := self.shutdown_event.pop(self.qname, None):
+                item.set()
 
     def write_data(self):
         try:
@@ -953,8 +953,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            if item := self.shutdown_queue.pop(self.qname, None):
-                queue_put_nowait_no_exc(item, True)
+            if item := self.shutdown_event.pop(self.qname, None):
+                item.set()
 
     def forward_connection_start(self):
         fsock, host, port = self.forward_input
@@ -1057,9 +1057,6 @@ class GrottServerHandler(StreamRequestHandler):
 
         self.commandresponse.pop(self.qname, None)
         self.register_mutex.pop(self.qname, None)
-
-        if item := self.shutdown_queue.pop(self.qname, None):
-            queue_clear(item)
 
         if item := self.forward_queue.pop(self.qname, None):
             queue_clear(item)
@@ -1176,8 +1173,8 @@ class GrottServerHandler(StreamRequestHandler):
                 if loggerreg := self.loggerreg.get(loggerid, None):
                     prev_qname = f"{loggerreg.get('ip')}_{loggerreg.get('port')}"
                     if prev_qname != self.qname:
-                        if item := self.shutdown_queue.pop(prev_qname, None):
-                            queue_put_nowait_no_exc(item, True)
+                        if item := self.shutdown_event.pop(prev_qname, None):
+                            item.set()
                             pr(
                                 f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
                             )
