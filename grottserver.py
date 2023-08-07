@@ -990,13 +990,15 @@ class GrottServerHandler(StreamRequestHandler):
 
             # this operation requires that prelude is set
             # which the above code ensures prior to calling
-            self.forward_data_op(data=data, prelude=prelude)
+            self.forward_data_op(data=data, prelude=prelude, attempts=0)
 
-    def forward_data_op(self, *, data, prelude, attempts=0):
+    def forward_data_op(self, *, data: bytes, prelude: bytes, attempts: int):
         if not isinstance(prelude, bytes) or not prelude:
             raise ValueError("prelude must be a non-empty bytes object")
         if not isinstance(data, bytes) or not data:
             raise ValueError("data must be a non-empty bytes object")
+        if attempts < 0:
+            raise ValueError("attempts must be a positive integer or zero")
 
         fsock, host, port = self.forward_input
         try:
