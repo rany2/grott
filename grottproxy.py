@@ -148,7 +148,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 if not more_data:
                     break
                 data += more_data
-                self.process_data(data, queues=[self.send_to_fwd])
+                self.process_data(data, q=self.send_to_fwd)
         except Exception:
             pr("- GrottProxy - Datalogger read error")
         finally:
@@ -179,7 +179,7 @@ class GrottProxyHandler(StreamRequestHandler):
                 if not more_data:
                     break
                 data += more_data
-                self.process_data(data, queues=[self.send_to_device])
+                self.process_data(data, q=self.send_to_device)
         except OSError:
             pr("- GrottProxy - Forward read error")
         finally:
@@ -197,7 +197,7 @@ class GrottProxyHandler(StreamRequestHandler):
         finally:
             self.shutdown_event.set()
 
-    def process_data(self, data, queues):
+    def process_data(self, data: bytes, q: queue.Queue):
         # test if record is not corrupted
         vdata = "".join(f"{n:02x}" for n in data)
         if not is_record_valid(vdata):
@@ -207,8 +207,7 @@ class GrottProxyHandler(StreamRequestHandler):
             return
 
         # send data to destination
-        for q in queues:
-            q.put_nowait(data)
+        q.put_nowait(data)
         if len(data) > self.conf.minrecl:
             # process received data
             procdata(self.conf, data)
