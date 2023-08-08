@@ -991,13 +991,13 @@ class GrottServerHandler(StreamRequestHandler):
                 if self.verbose:
                     pr(f"- GrottServer - Forward started: {host}:{port}")
 
-            # empty receive buffer to avoid TCP window full
-            # but only if there is data to receive (i.e.
-            # do not block on recv)
             try:
                 # Disable timeout to make this operation non-blocking
                 fsock.settimeout(0)
 
+                # Empty receive buffer to avoid TCP Window Full
+                # but only if there is data to receive (i.e.
+                # do not block on recv if there is no data)
                 fsock.recv(
                     fsock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF),
                     socket.MSG_DONTWAIT,
