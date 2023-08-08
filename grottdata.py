@@ -51,13 +51,7 @@ pvout_limit = GrottPvOutLimit()
 
 def str2bool(defstr):
     defstr = str(defstr).lower()
-    if defstr in ("true", "y", "yes", "1"):
-        defret = True
-    if defstr in ("false", "n", "no", "0"):
-        defret = False
-    if "defret" in locals():
-        return defret
-    return ()
+    return defstr in ("true", "y", "yes", "1")
 
 
 def pvoutput_send(*, conf, header, definedkey, jsondate):
