@@ -104,6 +104,7 @@ class GrottProxyHandler(StreamRequestHandler):
 
         try:
             self.forward = Forward().start(*self.forward_to)
+            self.forward.settimeout(self.conf.timeout)
         except OSError:
             pr("- GrottProxy - Forward connection failed:", ":".join(self.forward_to))
             return
