@@ -956,14 +956,6 @@ class GrottServerHandler(StreamRequestHandler):
             if item := self.shutdown_event.pop(self.qname, None):
                 item.set()
 
-    def forward_connection_start(self):
-        fsock, host, port = self.forward_input
-        fsock = Forward().start(host, port)
-        self.forward_input = (fsock, host, port)
-        if self.verbose:
-            pr(f"- GrottServer - Forward started: {host}:{port}")
-        return fsock, host, port
-
     def forward_data_handler(self):
         prelude = b""
         while True:
@@ -1006,7 +998,10 @@ class GrottServerHandler(StreamRequestHandler):
                 pr(f"- GrottServer - Sending forward data to {host}:{port}")
 
             if not isinstance(fsock, socket.socket):
-                fsock, host, port = self.forward_connection_start()
+                fsock = Forward().start(host, port)
+                self.forward_input = (fsock, host, port)
+                if self.verbose:
+                    pr(f"- GrottServer - Forward started: {host}:{port}")
                 fsock.sendall(prelude)
 
             # empty receive buffer to avoid TCP window full
