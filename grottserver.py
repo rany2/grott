@@ -987,7 +987,6 @@ class GrottServerHandler(StreamRequestHandler):
 
             if not isinstance(fsock, socket.socket):
                 fsock = Forward().start(host, port)
-                fsock.settimeout(self.conf.forwardtimeout)
                 self.forward_input = (fsock, host, port)
                 if self.verbose:
                     pr(f"- GrottServer - Forward started: {host}:{port}")
@@ -996,6 +995,9 @@ class GrottServerHandler(StreamRequestHandler):
             # but only if there is data to receive (i.e.
             # do not block on recv)
             try:
+                # Disable timeout to make this operation non-blocking
+                fsock.settimeout(0)
+
                 fsock.recv(
                     fsock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF),
                     socket.MSG_DONTWAIT,
@@ -1003,12 +1005,17 @@ class GrottServerHandler(StreamRequestHandler):
             except BlockingIOError:
                 pass
 
+            # Bring back timeout to detect when send buffer is full
+            # and avoid blocking on send (which would block the
+            # forward thread)
+            fsock.settimeout(self.conf.forwardtimeout)
+
             # send data to growatt
             fsock.sendall(data)
 
             if self.verbose:
                 pr(f"- GrottServer - Forward data sent to {host}:{port}")
-        except OSError:
+        except OSError as exc:
             # if forward fails, close connection and require reconnect
             if isinstance(fsock, socket.socket):
                 try:
@@ -1018,7 +1025,7 @@ class GrottServerHandler(StreamRequestHandler):
             self.forward_input = (None, host, port)
 
             if attempts >= self.conf.forwardretry:
-                pr(f"- GrottServer - Forward failed: {host}:{port}")
+                pr(f"- GrottServer - Forward failed: {host}:{port} ({exc})")
                 return
 
             self.forward_data_op(data=data, attempts=attempts + 1)
