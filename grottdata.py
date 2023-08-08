@@ -7,18 +7,17 @@ Updated: 2022-08-27
 import codecs
 import importlib
 import json
-import sys
-import textwrap
 import time
 import traceback
 from copy import deepcopy
 from datetime import datetime, timezone
-from itertools import cycle
 from typing import Dict
 
 import pytz
 import requests
 from paho.mqtt import publish
+
+from grotthelpers import decrypt, format_multi_line, pr
 
 
 class GrottPvOutLimit:
@@ -48,43 +47,6 @@ class GrottPvOutLimit:
 
 
 pvout_limit = GrottPvOutLimit()
-
-
-def pr(*args, **kwargs):
-    kwargs.setdefault("flush", True)
-    kwargs.setdefault("file", sys.stderr)
-    return print(*args, **kwargs)
-
-
-def format_multi_line(prefix, string, size=80):
-    """Formats multi-line data"""
-    size -= len(prefix)
-    if isinstance(string, bytes):
-        string = "".join(rf"\x{byte:02x}" for byte in string)
-        if size % 2:
-            size -= 1
-    return "\n".join([prefix + line for line in textwrap.wrap(string, size)])
-
-
-def decrypt(decdata):
-    """decrypt data"""
-
-    ndecdata = len(decdata)
-
-    # Create mask and convert to hexadecimal
-    mask = "Growatt"
-    hex_mask = [f"{ord(x):02x}" for x in mask]
-    nmask = len(hex_mask)
-
-    # start decrypt routine
-    unscrambled = list(decdata[0:8])  # take unscramble header
-
-    for i, j in zip(range(0, ndecdata - 8), cycle(range(0, nmask))):
-        unscrambled = unscrambled + [decdata[i + 8] ^ int(hex_mask[j], 16)]
-
-    result_string = "".join(f"{n:02x}" for n in unscrambled)
-
-    return result_string
 
 
 def str2bool(defstr):
@@ -299,7 +261,9 @@ def procdata(conf, data):
 
             inverter_serial = None
             try:
-                inverter_serial = codecs.decode(result_string[76:96], "hex").decode('ASCII')
+                inverter_serial = codecs.decode(result_string[76:96], "hex").decode(
+                    "ASCII"
+                )
                 if conf.verbose:
                     pr("\t - Possible Inverter serial", inverter_serial)
             except UnicodeDecodeError:
@@ -313,7 +277,10 @@ def procdata(conf, data):
                     pr("\t - Matched inverter serial to inverter type", inverter_type)
                 except:
                     inverter_type = "default"
-                    pr("\t - Inverter serial not recognised - using inverter type", inverter_type)
+                    pr(
+                        "\t - Inverter serial not recognised - using inverter type",
+                        inverter_type,
+                    )
 
             if inverter_type != "default":
                 layout = layout + inverter_type.upper()
@@ -345,7 +312,6 @@ def procdata(conf, data):
     # v270 log data record processing (SDM630 smart monitor with railog
     # if rectype == "data" :
     for keyword in conf.recorddict[layout].keys():
-
         if keyword not in ("decrypt", "date", "logstart", "device"):
             # try if keyword should be included
             include = True
@@ -720,7 +686,6 @@ def procdata(conf, data):
             pr("- Grott Send data to Influx disabled ")
 
     if conf.extension:
-
         if conf.verbose:
             pr("- Grott extension processing started: ", conf.extname)
 

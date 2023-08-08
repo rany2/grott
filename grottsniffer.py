@@ -1,7 +1,8 @@
 import socket
 import struct
 
-from grottdata import pr, procdata
+from grottdata import procdata
+from grotthelpers import pr
 
 
 class Sniff:
@@ -83,7 +84,6 @@ class Ethernet:
     """Unpack ethernet packet"""
 
     def __init__(self, raw_data):
-
         dest, src, prototype = struct.unpack("! 6s 6s H", raw_data[:14])
 
         self.dest_mac = get_mac_addr(dest)

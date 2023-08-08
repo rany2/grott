@@ -12,7 +12,6 @@ import queue
 import socket
 import threading
 from collections import defaultdict
-from contextlib import nullcontext
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
@@ -22,8 +21,9 @@ from urllib.parse import parse_qs, urlparse
 import libscrc
 import pytz
 
-from grottdata import decrypt, format_multi_line, pr, procdata
-from grottproxy import Forward, is_record_valid
+from grottdata import procdata
+from grotthelpers import (Forward, decrypt, format_multi_line, is_record_valid,
+                          pr, queue_clear, queue_clear_and_poison)
 
 # Version:
 verrel = "0.0.12a"
@@ -96,22 +96,6 @@ def createtimecommand(conf, protocol, loggerid):
         pr("- GrottServer - Time command created:\n" + format_multi_line("\t", body))
 
     return body
-
-
-def queue_clear(q: queue.Queue, acquire_mutex=True):
-    ctx = q.mutex if acquire_mutex else nullcontext()
-    with ctx:
-        q.queue.clear()
-        q.all_tasks_done.notify_all()
-        q.unfinished_tasks = 0
-
-
-def queue_clear_and_poison(q: queue.Queue):
-    with q.mutex:
-        queue_clear(q, acquire_mutex=False)
-        q.queue.append(None)
-        q.unfinished_tasks += 1
-        q.not_empty.notify()
 
 
 _QUEUE_COMMAND_RESP_CREATE_MUTEX = threading.Lock()

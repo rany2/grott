@@ -9,59 +9,8 @@ import socket
 import threading
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 
-import libscrc
-
-from grottdata import pr, procdata
-from grottserver import queue_clear_and_poison
-
-
-def is_record_valid(xdata):
-    """validata data record on length and CRC (for "05" and "06" records)
-
-    Args:
-        xdata (str): data record in hex format
-
-    Returns:
-        bool: True if valid, False if invalid
-    """
-
-    data = bytes.fromhex(xdata)
-    ldata = len(data)
-    len_orgpayload = int.from_bytes(data[4:6], "big")
-    header = "".join(f"{n:02x}" for n in data[0:8])
-    protocol = header[6:8]
-
-    if protocol in ("05", "06"):
-        lcrc = 4
-        crc = int.from_bytes(data[ldata - 2 : ldata], "big")
-    else:
-        lcrc = 0
-
-    len_realpayload = (ldata * 2 - 12 - lcrc) / 2
-
-    if protocol != "02":
-        crc_calc = libscrc.modbus(data[0 : ldata - 2])
-
-    if len_realpayload != len_orgpayload:
-        return False
-
-    if protocol != "02" and crc != crc_calc:
-        return False
-
-    return True
-
-
-class Forward:
-    def __init__(self):
-        self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    def start(self, host, port):
-        self.forward.connect((host, port))
-
-        # Disable Nagle's Algorithm
-        self.forward.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
-
-        return self.forward
+from grottdata import procdata
+from grotthelpers import Forward, is_record_valid, pr, queue_clear_and_poison
 
 
 class GrottProxy(ThreadingTCPServer):

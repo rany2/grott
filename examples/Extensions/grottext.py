@@ -1,4 +1,4 @@
-from grottdata import pr
+from grotthelpers import pr
 
 
 def grottext(conf, data, jsonmsg):

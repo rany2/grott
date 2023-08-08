@@ -16,7 +16,7 @@ Updated: 2023-03-17
 import sys
 
 from grottconf import Conf
-from grottdata import pr
+from grotthelpers import pr
 from grottproxy import Proxy
 from grottserver import Server
 from grottsniffer import Sniff
