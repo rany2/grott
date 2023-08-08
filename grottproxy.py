@@ -12,6 +12,7 @@ from socketserver import StreamRequestHandler, ThreadingTCPServer
 import libscrc
 
 from grottdata import pr, procdata
+from grottserver import queue_clear_and_poison
 
 
 def is_record_valid(xdata):
@@ -219,8 +220,8 @@ class GrottProxyHandler(StreamRequestHandler):
         pr(
             f"- GrottProxy - Close connection: {self.client_address[0]}:{self.client_address[1]}"
         )
-        self.send_to_device.put_nowait(None)
-        self.send_to_fwd.put_nowait(None)
+        queue_clear_and_poison(self.send_to_device)
+        queue_clear_and_poison(self.send_to_fwd)
         if self.forward:
             self.forward.shutdown(socket.SHUT_WR)
 

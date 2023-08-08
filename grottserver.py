@@ -12,6 +12,7 @@ import queue
 import socket
 import threading
 from collections import defaultdict
+from contextlib import nullcontext
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
@@ -97,11 +98,20 @@ def createtimecommand(conf, protocol, loggerid):
     return body
 
 
-def queue_clear(q: queue.Queue):
-    with q.mutex:
+def queue_clear(q: queue.Queue, acquire_mutex=True):
+    ctx = q.mutex if acquire_mutex else nullcontext()
+    with ctx:
         q.queue.clear()
         q.all_tasks_done.notify_all()
         q.unfinished_tasks = 0
+
+
+def queue_clear_and_poison(q: queue.Queue):
+    with q.mutex:
+        queue_clear(q, acquire_mutex=False)
+        q.queue.append(None)
+        q.unfinished_tasks += 1
+        q.not_empty.notify()
 
 
 _QUEUE_COMMAND_RESP_CREATE_MUTEX = threading.Lock()
@@ -938,8 +948,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            if item := self.shutdown_event.pop(self.qname, None):
-                item.set()
+            if tev := self.shutdown_event.pop(self.qname, None):
+                tev.set()
 
     def write_data(self):
         try:
@@ -953,8 +963,8 @@ class GrottServerHandler(StreamRequestHandler):
         except Exception:
             pass
         finally:
-            if item := self.shutdown_event.pop(self.qname, None):
-                item.set()
+            if tev := self.shutdown_event.pop(self.qname, None):
+                tev.set()
 
     def forward_data_handler(self):
         while True:
@@ -1037,16 +1047,14 @@ class GrottServerHandler(StreamRequestHandler):
 
         client_address, client_port = self.client_address
 
-        if item := self.send_queuereg.pop(self.qname, None):
-            queue_clear(item)
-            item.put(None)
+        if q := self.send_queuereg.pop(self.qname, None):
+            queue_clear_and_poison(q)
 
         self.commandresponse.pop(self.qname, None)
         self.register_mutex.pop(self.qname, None)
 
-        if item := self.forward_queue.pop(self.qname, None):
-            queue_clear(item)
-            item.put(None)
+        if q := self.forward_queue.pop(self.qname, None):
+            queue_clear_and_poison(q)
 
         with _LOGGERREG_CREATE_MUTEX:
             for key in self.loggerreg.keys():
@@ -1159,8 +1167,8 @@ class GrottServerHandler(StreamRequestHandler):
                 if loggerreg := self.loggerreg.get(loggerid, None):
                     prev_qname = f"{loggerreg.get('ip')}_{loggerreg.get('port')}"
                     if prev_qname != self.qname:
-                        if item := self.shutdown_event.pop(prev_qname, None):
-                            item.set()
+                        if tev := self.shutdown_event.pop(prev_qname, None):
+                            tev.set()
                             pr(
                                 f"- GrottServer - Shutdown previous connection {prev_qname} for {loggerid}"
                             )
