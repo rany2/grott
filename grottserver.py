@@ -1026,17 +1026,13 @@ class GrottServerHandler(StreamRequestHandler):
             if self.verbose:
                 pr(f"- GrottServer - Forward data sent to {host}:{port}")
         except OSError:
+            # if forward fails, close connection and require reconnect
             if isinstance(fsock, socket.socket):
                 try:
                     fsock.shutdown(socket.SHUT_WR)
                 except OSError:
                     pass
-
-            try:
-                fsock, host, port = self.forward_connection_start()
-                fsock.sendall(prelude)
-            except OSError:
-                attempts += 1
+            self.forward_input = (None, host, port)
 
             if attempts >= self.conf.forwardretry:
                 pr(f"- GrottServer - Forward failed: {host}:{port}")
