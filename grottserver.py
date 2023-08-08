@@ -987,6 +987,7 @@ class GrottServerHandler(StreamRequestHandler):
 
             if not isinstance(fsock, socket.socket):
                 fsock = Forward().start(host, port)
+                fsock.settimeout(self.conf.forwardtimeout)
                 self.forward_input = (fsock, host, port)
                 if self.verbose:
                     pr(f"- GrottServer - Forward started: {host}:{port}")
