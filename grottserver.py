@@ -13,6 +13,7 @@ import socket
 import threading
 from collections import defaultdict
 from datetime import datetime
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from time import sleep
@@ -31,72 +32,67 @@ verrel = "0.0.14d"
 
 # Constant responses:
 INVALID_DATALOGGER_ID = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid datalogger id specified"}),
 )
 INVALID_INVERTER_ID = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid inverter id specified"}),
 )
 INVALID_FORMAT = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid format specified"}),
 )
 INVALID_REG = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid register specified"}),
 )
 INVALID_VALUE = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid value specified"}),
 )
 INVALID_START_REGISTER = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid start register value specified"}),
 )
 INVALID_END_REGISTER = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid end register value specified"}),
 )
 INVALID_COMMAND = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "invalid command entered"}),
 )
 NO_COMMAND = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "no command entered"}),
 )
 NO_VALUE = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "no value specified"}),
 )
 NO_RESPONSE = (
-    400,
+    HTTPStatus.TOO_MANY_REQUESTS,
     "application/json",
     json.dumps({"error": "no or invalid response received"}),
 )
 MULTIREGISTER_DATALOGGER_NOT_ALLOWED = (
-    400,
-    "application/json",
-    json.dumps({"status": "multiregister command not allowed for datalogger"}),
-)
-MULTIREGISTER_DATALOGGER_NOT_ALLOWED = (
-    400,
+    HTTPStatus.BAD_REQUEST,
     "application/json",
     json.dumps({"error": "multiregister command not allowed for datalogger"}),
 )
 OK_RESPONSE = (
-    200,
+    HTTPStatus.OK,
     "application/json",
     json.dumps({"status": "ok"}),
 )
@@ -315,13 +311,13 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
         if not self.path:  # no path specified
             responsetxt = self.indexhtml
-            responserc = 200
+            responserc = HTTPStatus.OK
             responseheader = "text/html"
             htmlsendresp(self, responserc, responseheader, responsetxt)
             return
 
         if not self.authorized():
-            self.send_error(401, "Unauthorized")
+            self.send_error(HTTPStatus.UNAUTHORIZED)
             return
 
         if self.path in ("datalogger", "inverter"):
@@ -336,7 +332,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             if not urlquery:
                 # no command entered return loggerreg info:
                 responsetxt = json.dumps(self.loggerreg).encode("utf-8")
-                responserc = 200
+                responserc = HTTPStatus.OK
                 responseheader = "application/json"
                 htmlsendresp(self, responserc, responseheader, responsetxt)
                 return
@@ -474,7 +470,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                             # no need to do anything.
                             pass
                     responsetxt = json.dumps(comresp).encode("utf-8")
-                    responserc = 200
+                    responserc = HTTPStatus.OK
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
@@ -483,11 +479,11 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     return
 
         else:
-            self.send_error(404)
+            self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_PUT(self):
         if not self.authorized():
-            self.send_error(401, "Unauthorized")
+            self.send_error(HTTPStatus.UNAUTHORIZED)
             return
 
         url = urlparse(self.path)
@@ -606,7 +602,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     responsetxt = json.dumps(
                         {"status": "datetime command not allowed for inverter"}
                     )
-                    responserc = 400
+                    responserc = HTTPStatus.BAD_REQUEST
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
@@ -757,7 +753,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     htmlsendresp(self, *NO_RESPONSE)
                     return
         else:
-            self.send_error(404)
+            self.send_error(HTTPStatus.NOT_FOUND)
 
 
 class GrottHttpServer(ThreadingHTTPServer):
