@@ -146,7 +146,7 @@ def createtimecommand(conf, protocol, loggerid):
 
     # create header
     header = "0001" + "00" + protocol + f"{bodylen:04x}" + "0118"
-    # print(header)
+    # pr(header)
     body = header + body
     body = bytes.fromhex(body)
     if conf.verbose:
@@ -1122,7 +1122,7 @@ class GrottServerHandler(StreamRequestHandler):
                 # init record register logger/inverter id (including sessionid?)
                 # decrypt body.
                 if header[6:8] in ("05", "06"):
-                    # print("header1 : ", header[6:8])
+                    # pr("header1 : ", header[6:8])
                     result_string = decrypt(data)
                 else:
                     result_string = data.hex()
@@ -1191,18 +1191,18 @@ class GrottServerHandler(StreamRequestHandler):
             register = int(result_string[36 + offset : 40 + offset], 16)
             if rectype == "05":
                 # v0.0.14: test if empty response is sent (this will give CRC code as values)
-                # print("length resultstring:", len(result_string))
-                # print("result starts on:", 48+offset)
+                # pr("length resultstring:", len(result_string))
+                # pr("result starts on:", 48+offset)
                 if len(result_string) == 48 + offset:
                     if self.verbose:
-                        print(
+                        pr(
                             "\t - Grottserver - empty register get response recieved, response ignored"
                         )
                 else:
                     value = result_string[44 + offset : 48 + offset]
             elif rectype == "06":
                 result = result_string[40 + offset : 42 + offset]
-                # print("06 response result :", result)
+                # pr("06 response result :", result)
                 value = result_string[42 + offset : 46 + offset]
             elif rectype == "18":
                 result = result_string[40 + offset : 42 + offset]
