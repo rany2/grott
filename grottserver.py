@@ -795,7 +795,6 @@ class GrottServer(ThreadingTCPServer):
 
         shutdown_event = {}
         self.allow_reuse_address = True
-        self.daemon_threads = True
         super().__init__((conf.grottip, conf.grottport), handler_factory)
         pr(f"- GrottServer - Ready to listen at: {conf.grottip}:{conf.grottport}")
 
@@ -874,14 +873,12 @@ class GrottServerHandler(StreamRequestHandler):
         read_thread = threading.Thread(
             target=self.read_data,
         )
-        read_thread.daemon = True
         read_thread.start()
 
         # create and start write thread
         write_thread = threading.Thread(
             target=self.write_data,
         )
-        write_thread.daemon = True
         write_thread.start()
 
         # if forward is enabled, start forward thread
@@ -891,7 +888,6 @@ class GrottServerHandler(StreamRequestHandler):
             forward_thread = threading.Thread(
                 target=self.forward_data_handler,
             )
-            forward_thread.daemon = True
             forward_thread.start()
 
         # wait for self.shutdown_event to be set
@@ -1316,11 +1312,9 @@ class Server:
 
         try:
             http_server_thread = threading.Thread(target=http_server.serve_forever)
-            http_server_thread.daemon = True
             http_server_thread.start()
 
             device_server_thread = threading.Thread(target=device_server.serve_forever)
-            device_server_thread.daemon = True
             device_server_thread.start()
 
             http_server_thread.join()
