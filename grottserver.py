@@ -1,7 +1,7 @@
 """
 grottserver.py emulates the server.growatt.com website and was initial developed
 for debugging and testing grott.
-Updated: 2023-01-20
+Updated: 2023-09-04
 """
 
 import codecs
@@ -22,11 +22,11 @@ import libscrc
 import pytz
 
 from grottdata import procdata
-from grotthelpers import (Forward, decrypt, format_multi_line, is_record_valid,
-                          pr, queue_clear, queue_clear_and_poison)
+from grotthelpers import (Forward, decrypt, format_multi_line, pr, queue_clear,
+                          queue_clear_and_poison)
 
 # Version:
-verrel = "0.0.12a"
+verrel = "0.0.14d"
 
 
 def htmlsendresp(self, responserc, responseheader, responsetxt):
@@ -669,13 +669,23 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 body += f"{int(register):04x}" + valuelen + value
             bodylen = int(len(body) / 2 + 2)
 
+            # device id for datalogger is by default "01" for inverter deviceid is inverterid!
+            deviceid = "01"
+            # test if it is inverter command and set deviceid
+            if sendcommand in ("06", "10"):
+                deviceid = self.loggerreg[dataloggerid][urlquery["inverter"][0]][
+                    "inverterno"
+                ]
+                if self.verbose:
+                    pr(f"- GrottHttpServer - selected deviceid: {deviceid}")
+
             # create header
             header = (
                 f"{self.conf.sendseq:04x}"
                 + "00"
                 + self.loggerreg[dataloggerid]["protocol"]
                 + f"{bodylen:04x}"
-                + "01"
+                + deviceid
                 + sendcommand
             )
             body = header + body
@@ -683,7 +693,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             if self.verbose:
                 pr(
-                    "- GrottHttpServer - unencrypted command:\n"
+                    "- GrottHttpServer - unencrypted PUT command:\n"
                     + format_multi_line("\t", body)
                 )
 
@@ -734,7 +744,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     pr("- GrottHttpServer - wait for PUT response")
                 try:
                     # read response: be aware a 18 command give 19 response,
-                    # 06 send command gives 06 response in differnt format!
+                    # 06 send command gives 06 response in different format!
                     queue_commandrespget(
                         self.commandresponse,
                         qname,
@@ -1051,6 +1061,9 @@ class GrottServerHandler(StreamRequestHandler):
                     break
 
     def process_data(self, data):
+        # V0.0.14: default response on record to none (ignore record)
+        response = None
+
         # Display data
         if self.verbose:
             pr(
@@ -1058,15 +1071,6 @@ class GrottServerHandler(StreamRequestHandler):
                 + "- GrottServer - Original Data:\n"
                 + format_multi_line("\t", data)
             )
-
-        # validate data (Length + CRC for 05/06)
-        # join gebeurt nu meerdere keren! Stroomlijnen!!!!
-        vdata = "".join(f"{n:02x}" for n in data)
-        if not is_record_valid(vdata):
-            pr("- GrottServer - Invalid data record received, not processing")
-            # Create response if needed?
-            # self.send_queuereg[qname].put(response)
-            return
 
         # Collect data for MQTT, PVOutput, InfluxDB, etc..
         if len(data) > self.conf.minrecl:
@@ -1079,7 +1083,7 @@ class GrottServerHandler(StreamRequestHandler):
         header = "".join(f"{n:02x}" for n in data[0:8])
         # sequencenumber = header[0:4]
         protocol = header[6:8]
-        command = header[14:16]
+        rectype = header[14:16]
         if protocol in ("05", "06"):
             result_string = decrypt(data)
         else:
@@ -1093,7 +1097,7 @@ class GrottServerHandler(StreamRequestHandler):
         loggerid = codecs.decode(loggerid, "hex").decode("ascii")
 
         # Prepare response
-        if header[14:16] in ("16",):
+        if rectype in ("16",):
             # if ping send data as reply
             response = data
             if self.verbose:
@@ -1102,11 +1106,24 @@ class GrottServerHandler(StreamRequestHandler):
                     + format_multi_line("\t", response)
                 )
 
+            with _LOGGERREG_CREATE_MUTEX:
+                if not loggerid in self.loggerreg:
+                    self.loggerreg[loggerid] = {}
+
+                self.loggerreg[loggerid].update(
+                    {
+                        "ip": self.client_address[0],
+                        "port": self.client_address[1],
+                        "protocol": header[6:8],
+                    }
+                )
+
             # forward data for growatt
             if fwd_queue := self.forward_queue.get(self.qname, None):
                 fwd_queue.put_nowait(data)
 
-        elif header[14:16] in ("03", "04", "50", "29", "1b", "20"):
+        # v0.0.14: remove "29" (no response will be sent for this record!)
+        elif rectype in ("03", "04", "50", "1b", "20"):
             # if datarecord send ack.
             if self.verbose:
                 pr(f"- GrottServer - {header[12:16]} data record received")
@@ -1130,7 +1147,7 @@ class GrottServerHandler(StreamRequestHandler):
             if self.verbose:
                 pr("- GrottServer - Response:\n" + format_multi_line("\t", response))
 
-            if header[14:16] == "03":
+            if rectype in ("03",):
                 # init record register logger/inverter id (including sessionid?)
                 # decrypt body.
                 if header[6:8] in ("05", "06"):
@@ -1188,12 +1205,12 @@ class GrottServerHandler(StreamRequestHandler):
                 if self.verbose:
                     pr("- GrottServer 03 announce data record processed")
 
-        elif header[14:16] in ("19", "05", "06", "18"):
+        elif rectype in ("19", "05", "06", "18"):
             if self.verbose:
                 pr(
                     "- GrottServer - "
                     + header[12:16]
-                    + " record received, no response needed"
+                    + " command response record received, no response needed"
                 )
 
             offset = 0
@@ -1201,45 +1218,53 @@ class GrottServerHandler(StreamRequestHandler):
                 offset = 40
 
             register = int(result_string[36 + offset : 40 + offset], 16)
-            if command == "05":
-                # value = result_string[40+offset:44+offset]
-                value = result_string[44 + offset : 48 + offset]
-            elif command == "06":
+            if rectype == "05":
+                # v0.0.14: test if empty response is sent (this will give CRC code as values)
+                # print("length resultstring:", len(result_string))
+                # print("result starts on:", 48+offset)
+                if len(result_string) == 48 + offset:
+                    if self.verbose:
+                        print(
+                            "\t - Grottserver - empty register get response recieved, response ignored"
+                        )
+                else:
+                    value = result_string[44 + offset : 48 + offset]
+            elif rectype == "06":
                 result = result_string[40 + offset : 42 + offset]
                 # print("06 response result :", result)
                 value = result_string[42 + offset : 46 + offset]
-            elif command == "18":
+            elif rectype == "18":
                 result = result_string[40 + offset : 42 + offset]
             else:
                 # "19" response take length into account
                 valuelen = int(result_string[40 + offset : 44 + offset], 16)
                 value = codecs.decode(
                     result_string[44 + offset : 44 + offset + valuelen * 2], "hex"
-                ).decode("ascii")
+                ).decode("ISO-8859-1")
 
             regkey = f"{register:04x}"
-            if command == "06":
+            if rectype == "06":
                 # command 06 response has ack (result) + value. We will create a
                 # 06 response and a 05 response (for reg administration)
                 data_to_put = {"value": value, "result": result}
-            elif command == "18":
+            elif rectype == "18":
                 data_to_put = {"result": result}
             else:
-                # command 05 or 19
+                # rectype 05 or 19
                 data_to_put = {"value": value}
 
-            # push command response for HTTP server to be aware of
+            # push rectype response for HTTP server to be aware of
             queue_commandrespadd(
                 self.commandresponse,
                 self.qname,
-                command,
+                rectype,
                 regkey,
                 data_to_put,
             )
 
             response = None
 
-        elif header[14:16] in ("10",):
+        elif rectype in ("10",):
             if self.verbose:
                 pr(
                     f"- GrottServer - {header[12:16]} record received, no response needed"
@@ -1253,11 +1278,18 @@ class GrottServerHandler(StreamRequestHandler):
             queue_commandrespadd(
                 self.commandresponse,
                 self.qname,
-                command,
+                rectype,
                 regkey,
                 {"value": value},
             )
 
+            response = None
+
+        elif rectype in ("29",):
+            if self.verbose:
+                pr(
+                    f"- GrottServer - {header[12:16]} record received, no response needed"
+                )
             response = None
 
         else:
