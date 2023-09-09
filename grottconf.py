@@ -91,7 +91,6 @@ class Conf:
         self.httptoken = None
         self.registerreadtimeout = 15.0
         self.registerwritetimeout = 15.0
-        self.firstping = False
         self.sendseq = 1
         self.serverforward = False
         self.httptimeout = 10.0
@@ -347,8 +346,6 @@ class Conf:
             self.registerreadtimeout = config.getfloat("Server", "registerreadtimeout")
         if config.has_option("Server", "registerwritetimeout"):
             self.registerwritetimeout = config.getfloat("Server", "registerwritetimeout")
-        if config.has_option("Server", "firstping"):
-            self.firstping = config.getboolean("Server", "firstping")
         if config.has_option("Server", "sendseq"):
             self.sendseq = config.getint("Server", "sendseq")
         if config.has_option("Server", "serverforward"):
