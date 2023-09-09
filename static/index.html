@@ -268,19 +268,15 @@
                 })
                 .then(data => {
                     clearInterval(dots);
-                    document.getElementById('response').innerHTML = "";
-                    if (value == '') {
-                        try {
-                            let json = JSON.parse(data);
-                            if (json['value'] == undefined)
-                                throw new Error('value not found');
-                            document.getElementById('response').innerText += json['value'].toString();
-                        } catch (e) {
-                            document.getElementById('response').innerText = data.trimEnd();
-                        }
-                    } else {
-                        document.getElementById('response').innerText += data.trimEnd();
-                    }
+                    let json = JSON.parse(data);
+                    let responseText = json['value'];
+                    if (responseText == undefined)
+                        responseText = json['status'];
+                    if (responseText == undefined)
+                        responseText = json['error'];
+                    if (responseText == undefined)
+                        throw new Error('Invalid response');
+                    document.getElementById('response').innerText = responseText;
                     submitDataloggerComplete = true;
                 })
                 .catch(error => {

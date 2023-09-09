@@ -29,20 +29,89 @@ from grotthelpers import (Forward, decrypt, format_multi_line, pr, queue_clear,
 # Version:
 verrel = "0.0.14d"
 
+# Constant responses:
+INVALID_DATALOGGER_ID = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid datalogger id specified"}),
+)
+INVALID_INVERTER_ID = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid inverter id specified"}),
+)
+INVALID_FORMAT = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid format specified"}),
+)
+INVALID_REG = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid register specified"}),
+)
+INVALID_VALUE = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid value specified"}),
+)
+INVALID_START_REGISTER = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid start register value specified"}),
+)
+INVALID_END_REGISTER = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid end register value specified"}),
+)
+INVALID_COMMAND = (
+    400,
+    "application/json",
+    json.dumps({"error": "invalid command entered"}),
+)
+NO_COMMAND = (
+    400,
+    "application/json",
+    json.dumps({"error": "no command entered"}),
+)
+NO_VALUE = (
+    400,
+    "application/json",
+    json.dumps({"error": "no value specified"}),
+)
+NO_RESPONSE = (
+    400,
+    "application/json",
+    json.dumps({"error": "no or invalid response received"}),
+)
+MULTIREGISTER_DATALOGGER_NOT_ALLOWED = (
+    400,
+    "application/json",
+    json.dumps({"status": "multiregister command not allowed for datalogger"}),
+)
+MULTIREGISTER_DATALOGGER_NOT_ALLOWED = (
+    400,
+    "application/json",
+    json.dumps({"error": "multiregister command not allowed for datalogger"}),
+)
+OK_RESPONSE = (
+    200,
+    "application/json",
+    json.dumps({"status": "ok"}),
+)
 
-def htmlsendresp(self, responserc, responseheader, responsetxt):
+
+def htmlsendresp(self: BaseHTTPRequestHandler, responserc, responseheader, responsetxt):
     """send http response"""
     self.send_response(responserc)
     self.send_header("Content-type", responseheader)
     self.end_headers()
+    if isinstance(responsetxt, str):
+        responsetxt = responsetxt.encode("utf-8")
+    elif not isinstance(responsetxt, bytes):
+        responsetxt = str(responsetxt).encode("utf-8")
     self.wfile.write(responsetxt)
-    if self.verbose:
-        pr(
-            "- GrottHttpServer - http response send:",
-            responserc,
-            responseheader,
-            responsetxt,
-        )
 
 
 def getcurrenttime(conf):
@@ -193,20 +262,14 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             pass
 
         if not inverterid_found:
-            responsetxt = b"no or no valid invertid specified\r\n"
-            responserc = 400
-            responseheader = "text/html"
-            htmlsendresp(self, responserc, responseheader, responsetxt)
+            htmlsendresp(self, *INVALID_INVERTER_ID)
             return None, None
 
         try:
             # is format keyword specified? (dec, text, hex)
             formatval = urlquery["format"][0]
             if formatval not in ("dec", "hex", "text"):
-                responsetxt = b"invalid format specified\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                htmlsendresp(self, *INVALID_FORMAT)
                 return None, None
         except (KeyError, IndexError):
             # no set default format op dec.
@@ -222,18 +285,12 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             dataloggerid = urlquery["datalogger"][0]
             _ = self.loggerreg[dataloggerid]
         except (KeyError, IndexError):
-            responsetxt = b"invalid datalogger id\r\n"
-            responserc = 400
-            responseheader = "text/plain"
-            htmlsendresp(self, responserc, responseheader, responsetxt)
-            return None
+            htmlsendresp(self, *INVALID_DATALOGGER_ID)
+            return
 
         if dataloggerid is None:
-            responsetxt = b"no datalogger id specified\r\n"
-            responserc = 400
-            responseheader = "text/plain"
-            htmlsendresp(self, responserc, responseheader, responsetxt)
-            return None
+            htmlsendresp(self, *INVALID_DATALOGGER_ID)
+            return
 
         return dataloggerid
 
@@ -278,7 +335,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             if not urlquery:
                 # no command entered return loggerreg info:
-                responsetxt = json.dumps(self.loggerreg).encode("utf-8") + b"\r\n"
+                responsetxt = json.dumps(self.loggerreg).encode("utf-8")
                 responserc = 200
                 responseheader = "application/json"
                 htmlsendresp(self, responserc, responseheader, responsetxt)
@@ -292,16 +349,11 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                         pr("- GrottHttpServer - get command:", command)
                 else:
                     # no valid command entered
-                    responsetxt = b"no valid command entered\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_COMMAND)
                     return
             except (KeyError, IndexError):
-                responsetxt = b"no command entered\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                # no command entered
+                htmlsendresp(self, *NO_COMMAND)
                 return
 
             if sendcommand == "05":
@@ -326,16 +378,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     else:
                         raise ValueError("invalid register value")
                 except (KeyError, IndexError, ValueError):
-                    responsetxt = b"invalid reg value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_REG)
                     return
             else:
-                responsetxt = b"command not defined or not available yet\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                htmlsendresp(self, *INVALID_COMMAND)
                 return
 
             bodybytes = dataloggerid.encode("ascii")
@@ -388,10 +434,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             register_mutex = self.register_mutex.get(qname, None)
             if register_mutex is None:
-                responsetxt = b"datalogger not found\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                htmlsendresp(self, *INVALID_DATALOGGER_ID)
                 return
 
             with register_mutex:
@@ -408,10 +451,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     self.register_mutex.pop(qname, None)
 
                     # Send an error response
-                    responsetxt = b"datalogger not found\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_DATALOGGER_ID)
                     return
 
                 try:
@@ -433,24 +473,15 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                             # comresp["value"] already in hex,
                             # no need to do anything.
                             pass
-                    responsetxt = json.dumps(comresp).encode("utf-8") + b"\r\n"
+                    responsetxt = json.dumps(comresp).encode("utf-8")
                     responserc = 200
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
                 except (queue.Empty, KeyError, IndexError, ValueError):
-                    responsetxt = b"no or invalid response received\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *NO_RESPONSE)
                     return
 
-        elif self.path == "help":
-            responserc = 200
-            responseheader = "text/plain"
-            responsetxt = b"No help available yet\r\n"
-            htmlsendresp(self, responserc, responseheader, responsetxt)
-            return
         else:
             self.send_error(404)
 
@@ -481,11 +512,8 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 sendcommand = "06"
 
             if not urlquery:
-                # no command entered return loggerreg info:
-                responsetxt = b"empty put received\r\n"
-                responserc = 400
-                responseheader = "text/html"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                # no command entered
+                htmlsendresp(self, *NO_COMMAND)
                 return
 
             try:
@@ -495,16 +523,12 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     if self.verbose:
                         pr(f"- GrottHttpServer - PUT command: {command}")
                 else:
-                    responsetxt = b"no valid command entered\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    # no valid command entered
+                    htmlsendresp(self, *INVALID_COMMAND)
                     return
             except (KeyError, IndexError):
-                responsetxt = b"no command entered\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                # no command entered
+                htmlsendresp(self, *NO_COMMAND)
                 return
 
             if sendcommand == "06":
@@ -526,10 +550,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     else:
                         raise ValueError("invalid register value")
                 except (KeyError, IndexError, ValueError):
-                    responsetxt = b"invalid reg value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_REG)
                     return
 
                 try:
@@ -538,20 +559,12 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     value = None
 
                 if value is None:
-                    responsetxt = b"no value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *NO_VALUE)
                     return
 
             elif command == "multiregister":
                 if sendcommand == "18":
-                    responsetxt = (
-                        b"multiregister command not allowed for datalogger\r\n"
-                    )
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *MULTIREGISTER_DATALOGGER_NOT_ALLOWED)
                     return
 
                 # Switch to multiregister command
@@ -564,10 +577,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     else:
                         raise ValueError("invalid register value")
                 except (KeyError, IndexError, ValueError):
-                    responsetxt = b"invalid start register value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_START_REGISTER)
                     return
 
                 # Check for valid end register
@@ -577,10 +587,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     else:
                         raise ValueError("invalid register value")
                 except (KeyError, IndexError, ValueError):
-                    responsetxt = b"invalid end register value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_END_REGISTER)
                     return
 
                 # TODO: Check the value is the right length for the given start/end registers
@@ -590,18 +597,17 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     value = None
 
                 if value is None:
-                    responsetxt = b"no value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *NO_VALUE)
                     return
 
             elif command == "datetime":
                 # process set datetime, only allowed for datalogger!!!
                 if sendcommand == "06":
-                    responsetxt = b"datetime command not allowed for inverter\r\n"
+                    responsetxt = json.dumps(
+                        {"status": "datetime command not allowed for inverter"}
+                    )
                     responserc = 400
-                    responseheader = "text/plain"
+                    responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
                     return
                 # prepare datetime
@@ -609,12 +615,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                 value = getcurrenttime(self.conf)
 
             else:
-                # Start additional command processing here, to be created:
-                # translate command to register (from list>)
-                responsetxt = b"command not defined or not available yet\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                htmlsendresp(self, *INVALID_COMMAND)
                 return
 
             # test value:
@@ -634,14 +635,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     value = int(value, 16)
 
                 if not 0 <= value <= 65535 or value is None:
-                    responsetxt = b"invalid value specified\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_VALUE)
                     return
 
             # start creating command
-
             bodybytes = dataloggerid.encode("ascii")
             body = bodybytes.hex()
 
@@ -712,10 +709,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             register_mutex = self.register_mutex.get(qname, None)
             if register_mutex is None:
-                responsetxt = b"datalogger not found\r\n"
-                responserc = 400
-                responseheader = "text/plain"
-                htmlsendresp(self, responserc, responseheader, responsetxt)
+                htmlsendresp(self, *INVALID_DATALOGGER_ID)
                 return
 
             with register_mutex:
@@ -732,10 +726,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                     self.register_mutex.pop(qname, None)
 
                     # Send an error response
-                    responsetxt = b"datalogger not found\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *INVALID_DATALOGGER_ID)
                     return
 
                 responseno = f"{self.conf.sendseq:04x}"
@@ -760,23 +751,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                             register,
                             self.commandresponse[qname][sendcommand][regkey],
                         )
-                    responsetxt = b"OK\r\n"
-                    responserc = 200
-                    responseheader = "text/plain"
-                    if self.verbose:
-                        pr(
-                            "- GrottHttpServer - datalogger command response:",
-                            responserc,
-                            responsetxt,
-                            responseheader,
-                        )
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *OK_RESPONSE)
                     return
                 except queue.Empty:
-                    responsetxt = b"no or invalid response received\r\n"
-                    responserc = 400
-                    responseheader = "text/plain"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *NO_RESPONSE)
                     return
         else:
             self.send_error(404)
