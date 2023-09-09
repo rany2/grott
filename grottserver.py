@@ -16,6 +16,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from time import sleep
+from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -833,10 +834,10 @@ class GrottServerHandler(StreamRequestHandler):
         self,
         send_queuereg,
         conf,
-        loggerreg,
-        commandresponse,
-        shutdown_event,
-        register_mutex,
+        loggerreg: Dict[str, Dict[str, Any]],
+        commandresponse: Dict[str, Dict[str, Dict[str, Any]]],
+        shutdown_event: Dict[str, threading.Event],
+        register_mutex: Dict[str, threading.Lock],
         *args,
     ):
         self.commandresponse = commandresponse
@@ -845,7 +846,7 @@ class GrottServerHandler(StreamRequestHandler):
         self.send_queuereg = send_queuereg
         self.shutdown_event = shutdown_event
         self.forward_input = ()
-        self.forward_queue = {}
+        self.forward_queue: Dict[str, queue.Queue] = {}
         self.verbose = conf.verbose
         self.register_mutex = register_mutex
 
