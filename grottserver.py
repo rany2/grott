@@ -17,7 +17,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from time import sleep
-from typing import Dict
+from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -135,7 +135,7 @@ def getcurrenttime(conf):
     return datetime.now(local).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def createtimecommand(conf, protocol, loggerid):
+def createtimecommand(conf, protocol: str, loggerid: str):
     bodybytes = loggerid.encode("ascii")
     body = bodybytes.hex()
     if protocol == "06":
@@ -198,11 +198,11 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
 
 class Server:
     def __init__(self, conf):
-        self.conf = conf
-        self.send_queuereg = {}
-        self.loggerreg = {}
-        self.register_mutex = {}
-        self.shutdown_event = {}
+        self.conf: Any = conf
+        self.send_queuereg: Dict[str, queue.Queue] = {}
+        self.loggerreg: Dict[str, Any] = {}
+        self.register_mutex: Dict[str, threading.Lock] = {}
+        self.shutdown_event: Dict[str, threading.Event] = {}
         self.commandresponse = defaultdict(dict)
 
     def main(self, conf):
@@ -1197,6 +1197,9 @@ class GrottServerHandler(StreamRequestHandler):
             if protocol in ("06",):
                 offset = 40
 
+            value = None
+            result = None
+
             register = int(result_string[36 + offset : 40 + offset], 16)
             if rectype == "05":
                 # v0.0.14: test if empty response is sent (this will give CRC code as values)
@@ -1207,7 +1210,6 @@ class GrottServerHandler(StreamRequestHandler):
                         pr(
                             "\t - Grottserver - empty register get response recieved, response ignored"
                         )
-                    value = None
                 else:
                     value = result_string[44 + offset : 48 + offset]
             elif rectype == "06":
