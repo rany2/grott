@@ -17,7 +17,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from time import sleep
-from typing import Any, Dict
+from typing import Dict
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -196,19 +196,48 @@ def queue_commandrespget(commandresponse, qname, sendcommand, regkey, timeout=0)
     return commandresponse[qname][sendcommand][regkey].get(timeout=timeout)
 
 
-class GrottHttpRequestHandler(BaseHTTPRequestHandler):
-    def __init__(
-        self, send_queuereg, conf, loggerreg, commandresponse, register_mutex, *args
-    ):
-        self.send_queuereg = send_queuereg
+class Server:
+    def __init__(self, conf):
         self.conf = conf
-        self.verbose = conf.verbose
-        self.loggerreg = loggerreg
-        self.commandresponse = commandresponse
-        self.register_mutex = register_mutex
+        self.send_queuereg = {}
+        self.loggerreg = {}
+        self.register_mutex = {}
+        self.shutdown_event = {}
+        self.commandresponse = defaultdict(dict)
+
+    def main(self, conf):
+        if conf.grottip == "default":
+            conf.grottip = "0.0.0.0"
+
+        http_server = GrottHttpServer(self)
+        device_server = GrottServer(self)
+
+        try:
+            http_server_thread = threading.Thread(target=http_server.serve_forever)
+            http_server_thread.start()
+
+            device_server_thread = threading.Thread(target=device_server.serve_forever)
+            device_server_thread.start()
+
+            http_server_thread.join()
+            device_server_thread.join()
+        except KeyboardInterrupt:
+            pr("- GrottServer - KeyboardInterrupt received, shutting down")
+            http_server.shutdown()
+            device_server.shutdown()
+
+
+class GrottHttpRequestHandler(BaseHTTPRequestHandler):
+    def __init__(self, server: Server, *args, **kwargs):
+        self.send_queuereg = server.send_queuereg
+        self.conf = server.conf
+        self.verbose = server.conf.verbose
+        self.loggerreg = server.loggerreg
+        self.commandresponse = server.commandresponse
+        self.register_mutex = server.register_mutex
 
         # set variables for StreamRequestHandler's setup()
-        self.timeout = conf.httptimeout
+        self.timeout = server.conf.httptimeout
 
         # save index.html in memory
         with open(
@@ -216,7 +245,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
         ) as f:
             self.indexhtml = f.read()
 
-        super().__init__(*args)
+        super().__init__(*args, **kwargs)
 
     def log_message(self, format, *args):
         pr("- GrottHttpServer - %s - %s" % (self.address_string(), format % args))
@@ -762,75 +791,57 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 class GrottHttpServer(ThreadingHTTPServer):
     """This wrapper will create an HTTP server where the handler has access to the send_queue"""
 
-    def __init__(self, conf, send_queuereg, loggerreg, commandresponse, register_mutex):
-        def handler_factory(*args):
+    def __init__(self, server: Server):
+        def handler_factory(*args, **kwargs):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
-            return GrottHttpRequestHandler(
-                send_queuereg, conf, loggerreg, commandresponse, register_mutex, *args
-            )
+            return GrottHttpRequestHandler(server, *args, **kwargs)
 
         self.allow_reuse_address = True
-        super().__init__((conf.httphost, conf.httpport), handler_factory)
-        pr(f"- GrottHttpServer - Ready to listen at: {conf.httphost}:{conf.httpport}")
+        httphost, httpport = server.conf.httphost, server.conf.httpport
+        super().__init__((httphost, httpport), handler_factory)
+        pr(f"- GrottHttpServer - Ready to listen at: {httphost}:{httpport}")
 
 
 class GrottServer(ThreadingTCPServer):
     """This wrapper will create a Growatt server where the handler has access to the send_queue"""
 
-    def __init__(self, conf, send_queuereg, loggerreg, commandresponse, register_mutex):
-        def handler_factory(*args):
+    def __init__(self, server: Server):
+        def handler_factory(*args, **kwargs):
             """
             Using a function to create and return the handler,
             so we can provide our own argument (send_queue)
             """
-            return GrottServerHandler(
-                send_queuereg,
-                conf,
-                loggerreg,
-                commandresponse,
-                shutdown_event,
-                register_mutex,
-                *args,
-            )
+            return GrottServerHandler(server, *args, **kwargs)
 
-        shutdown_event = {}
         self.allow_reuse_address = True
-        super().__init__((conf.grottip, conf.grottport), handler_factory)
-        pr(f"- GrottServer - Ready to listen at: {conf.grottip}:{conf.grottport}")
+        grottip, grottport = server.conf.grottip, server.conf.grottport
+        super().__init__((grottip, grottport), handler_factory)
+        pr(f"- GrottServer - Ready to listen at: {grottip}:{grottport}")
 
 
 _LOGGERREG_CREATE_MUTEX = threading.Lock()
 
 
 class GrottServerHandler(StreamRequestHandler):
-    def __init__(
-        self,
-        send_queuereg,
-        conf,
-        loggerreg: Dict[str, Dict[str, Any]],
-        commandresponse: Dict[str, Dict[str, Dict[str, Any]]],
-        shutdown_event: Dict[str, threading.Event],
-        register_mutex: Dict[str, threading.Lock],
-        *args,
-    ):
-        self.commandresponse = commandresponse
-        self.conf = conf
-        self.loggerreg = loggerreg
-        self.send_queuereg = send_queuereg
-        self.shutdown_event = shutdown_event
+    def __init__(self, server: Server, *args, **kwargs):
+        self.commandresponse = server.commandresponse
+        self.conf = server.conf
+        self.loggerreg = server.loggerreg
+        self.send_queuereg = server.send_queuereg
+        self.shutdown_event = server.shutdown_event
         self.forward_input = ()
         self.forward_queue: Dict[str, queue.Queue] = {}
-        self.verbose = conf.verbose
-        self.register_mutex = register_mutex
+        self.verbose = server.conf.verbose
+        self.register_mutex = server.register_mutex
 
         # set variables for StreamRequestHandler's setup()
-        self.timeout = conf.timeout
+        self.timeout = server.conf.timeout
         self.disable_nagle_algorithm = True
 
-        super().__init__(*args)
+        super().__init__(*args, **kwargs)
 
     def handle(self):
         pr(
@@ -873,24 +884,18 @@ class GrottServerHandler(StreamRequestHandler):
         self.shutdown_event[self.qname] = threading.Event()
 
         # create and start read thread
-        read_thread = threading.Thread(
-            target=self.read_data,
-        )
+        read_thread = threading.Thread(target=self.read_data)
         read_thread.start()
 
         # create and start write thread
-        write_thread = threading.Thread(
-            target=self.write_data,
-        )
+        write_thread = threading.Thread(target=self.write_data)
         write_thread.start()
 
         # if forward is enabled, start forward thread
         if self.forward_input:
             self.forward_queue[self.qname] = queue.Queue()
 
-            forward_thread = threading.Thread(
-                target=self.forward_data_handler,
-            )
+            forward_thread = threading.Thread(target=self.forward_data_handler)
             forward_thread.start()
 
         # wait for self.shutdown_event to be set
@@ -1279,45 +1284,3 @@ class GrottServerHandler(StreamRequestHandler):
                     " msg:\n" + format_multi_line("\t", response),
                 )
             self.send_queuereg[self.qname].put_nowait(response)
-
-
-class Server:
-    def __init__(self, conf):
-        self.conf = conf
-        self.send_queuereg = {}
-        self.loggerreg = {}
-        self.register_mutex = {}
-        self.commandresponse = defaultdict(dict)
-
-    def main(self, conf):
-        if conf.grottip == "default":
-            conf.grottip = "0.0.0.0"
-
-        http_server = GrottHttpServer(
-            conf,
-            self.send_queuereg,
-            self.loggerreg,
-            self.commandresponse,
-            self.register_mutex,
-        )
-        device_server = GrottServer(
-            conf,
-            self.send_queuereg,
-            self.loggerreg,
-            self.commandresponse,
-            self.register_mutex,
-        )
-
-        try:
-            http_server_thread = threading.Thread(target=http_server.serve_forever)
-            http_server_thread.start()
-
-            device_server_thread = threading.Thread(target=device_server.serve_forever)
-            device_server_thread.start()
-
-            http_server_thread.join()
-            device_server_thread.join()
-        except KeyboardInterrupt:
-            pr("- GrottServer - KeyboardInterrupt received, shutting down")
-            http_server.shutdown()
-            device_server.shutdown()
