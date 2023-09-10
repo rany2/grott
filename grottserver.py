@@ -108,9 +108,7 @@ def htmlsendresp(self: BaseHTTPRequestHandler, responserc, responseheader, respo
     self.send_response(responserc)
     self.send_header("Content-type", responseheader)
     self.end_headers()
-    if isinstance(responsetxt, str):
-        responsetxt = responsetxt.encode("utf-8")
-    elif not isinstance(responsetxt, bytes):
+    if not isinstance(responsetxt, bytes):
         responsetxt = str(responsetxt).encode("utf-8")
     self.wfile.write(responsetxt)
 
