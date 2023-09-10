@@ -910,8 +910,9 @@ class GrottServerHandler(StreamRequestHandler):
                     break
                 data += more_data
                 self.process_data(data)
-        except Exception:
-            pass
+        except Exception as exc:
+            if self.verbose:
+                pr(f"- GrottServer - Read error: {exc}")
         finally:
             if tev := self.shutdown_event.pop(self.qname, None):
                 tev.set()
