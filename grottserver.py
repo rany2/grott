@@ -463,7 +463,10 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                         regkey,
                         timeout=self.conf.registerreadtimeout,
                     )
-                    if sendcommand == "05":
+                    if comresp["value"] is None:
+                        htmlsendresp(self, *NO_RESPONSE)
+                        return
+                    elif sendcommand == "05":
                         if formatval == "dec":
                             comresp["value"] = int(comresp["value"], 16)
                         elif formatval == "text":
@@ -1199,6 +1202,7 @@ class GrottServerHandler(StreamRequestHandler):
                         pr(
                             "\t - Grottserver - empty register get response recieved, response ignored"
                         )
+                    value = None
                 else:
                     value = result_string[44 + offset : 48 + offset]
             elif rectype == "06":
