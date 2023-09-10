@@ -1233,8 +1233,6 @@ class GrottServerHandler(StreamRequestHandler):
                 data_to_put,
             )
 
-            response = None
-
         elif rectype in ("10",):
             if self.verbose:
                 pr(
@@ -1254,15 +1252,11 @@ class GrottServerHandler(StreamRequestHandler):
                 {"value": value},
             )
 
-            response = None
-
         elif rectype in ("29",):
             if self.verbose:
                 pr(
                     f"- GrottServer - {header[12:16]} record received, no response needed"
                 )
-            response = None
-
         else:
             if self.verbose:
                 pr(
@@ -1271,7 +1265,6 @@ class GrottServerHandler(StreamRequestHandler):
                     + "\n"
                     + format_multi_line("\t", data)
                 )
-            response = None
 
         if response is not None:
             if self.verbose:
