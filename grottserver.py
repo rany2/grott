@@ -91,6 +91,11 @@ MULTIREGISTER_DATALOGGER_NOT_ALLOWED = (
     "application/json",
     json.dumps({"error": "multiregister command not allowed for datalogger"}),
 )
+DATETIME_NOT_ALLOWED_FOR_INVERTER = (
+    HTTPStatus.BAD_REQUEST,
+    "application/json",
+    json.dumps({"error": "datetime command not allowed for inverter"}),
+)
 OK_RESPONSE = (
     HTTPStatus.OK,
     "application/json",
@@ -331,7 +336,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
 
             if not urlquery:
                 # no command entered return loggerreg info:
-                responsetxt = json.dumps(self.loggerreg).encode("utf-8")
+                responsetxt = json.dumps(self.loggerreg)
                 responserc = HTTPStatus.OK
                 responseheader = "application/json"
                 htmlsendresp(self, responserc, responseheader, responsetxt)
@@ -469,7 +474,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
                             # comresp["value"] already in hex,
                             # no need to do anything.
                             pass
-                    responsetxt = json.dumps(comresp).encode("utf-8")
+                    responsetxt = json.dumps(comresp)
                     responserc = HTTPStatus.OK
                     responseheader = "application/json"
                     htmlsendresp(self, responserc, responseheader, responsetxt)
@@ -599,12 +604,7 @@ class GrottHttpRequestHandler(BaseHTTPRequestHandler):
             elif command == "datetime":
                 # process set datetime, only allowed for datalogger!!!
                 if sendcommand == "06":
-                    responsetxt = json.dumps(
-                        {"status": "datetime command not allowed for inverter"}
-                    )
-                    responserc = HTTPStatus.BAD_REQUEST
-                    responseheader = "application/json"
-                    htmlsendresp(self, responserc, responseheader, responsetxt)
+                    htmlsendresp(self, *DATETIME_NOT_ALLOWED_FOR_INVERTER)
                     return
                 # prepare datetime
                 register = 31
