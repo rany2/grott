@@ -849,7 +849,6 @@ class GrottServerHandler(StreamRequestHandler):
         # setup forwarding to Growatt server if configured
         if self.conf.serverforward:
             self.forward_input = (
-                None,
                 self.conf.growattip,
                 self.conf.growattport,
             )
@@ -893,7 +892,7 @@ class GrottServerHandler(StreamRequestHandler):
         if self.forward_input:
             self.forward_queue[self.qname] = queue.Queue()
 
-            forward_thread = threading.Thread(target=self.forward_data_handler)
+            forward_thread = threading.Thread(target=self.forward_data)
             forward_thread.start()
 
         # wait for self.shutdown_event to be set
@@ -938,79 +937,70 @@ class GrottServerHandler(StreamRequestHandler):
             if tev := self.shutdown_event.pop(self.qname, None):
                 tev.set()
 
-    def forward_data_handler(self):
-        while True:
-            data = self.forward_queue[self.qname].get()
+    def forward_data(self):
+        def op(fsock, host, port, data, attempts=self.conf.forwardretry):
+            try:
+                if not isinstance(fsock, socket.socket):
+                    fsock = Forward().start(host, port)
+                    if self.verbose:
+                        pr(f"- GrottServer - Forward started: {host}:{port}")
 
-            # when data is None, it means the forward socket
-            # needs to be closed for clean shutdown.
-            if data is None:
-                fsock, _, _ = self.forward_input
+                try:
+                    # Disable timeout to make this operation non-blocking
+                    fsock.settimeout(0)
+
+                    # Empty receive buffer to avoid TCP Window Full
+                    # but only if there is data to receive (i.e.
+                    # do not block on recv if there is no data)
+                    fsock.recv(
+                        fsock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF),
+                        socket.MSG_DONTWAIT,
+                    )
+                except BlockingIOError:
+                    pass
+
+                # Bring back timeout to detect when send buffer is full
+                # and avoid blocking on send (which would block the
+                # forward thread)
+                fsock.settimeout(self.conf.forwardtimeout)
+
+                # send data to growatt
+                fsock.sendall(data)
+
+                if self.verbose:
+                    pr(f"- GrottServer - Forward data sent to {host}:{port}")
+            except OSError as exc:
+                # if forward fails, close connection and require reconnect
                 if isinstance(fsock, socket.socket):
                     try:
                         fsock.shutdown(socket.SHUT_WR)
                     except OSError:
                         pass
-                return
 
-            # forward data to growatt
-            self.forward_data_op(data=data, attempts=0)
+                if attempts < 0:
+                    pr(f"- GrottServer - Forward failed: {host}:{port} ({exc})")
+                    return
 
-    def forward_data_op(self, *, data: bytes, attempts: int):
-        if not isinstance(data, bytes) or not data:
-            raise ValueError("data must be a non-empty bytes object")
-        if attempts < 0:
-            raise ValueError("attempts must be a positive integer or zero")
+                pr(
+                    f"- GrottServer - Forward failed: {host}:{port} ({exc}), retrying..."
+                )
+                return op(attempts - 1)
 
-        fsock, host, port = self.forward_input
-        try:
+        q = self.forward_queue[self.qname]
+        if not self.forward_input:
+            return
+        host, port, fsock = *self.forward_input, None
+        while data := q.get():
             if self.verbose:
                 pr(f"- GrottServer - Sending forward data to {host}:{port}")
 
-            if not isinstance(fsock, socket.socket):
-                fsock = Forward().start(host, port)
-                self.forward_input = (fsock, host, port)
-                if self.verbose:
-                    pr(f"- GrottServer - Forward started: {host}:{port}")
+            fsock = op(fsock, host, port, data)
 
+        if isinstance(fsock, socket.socket):
             try:
-                # Disable timeout to make this operation non-blocking
-                fsock.settimeout(0)
-
-                # Empty receive buffer to avoid TCP Window Full
-                # but only if there is data to receive (i.e.
-                # do not block on recv if there is no data)
-                fsock.recv(
-                    fsock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF),
-                    socket.MSG_DONTWAIT,
-                )
-            except BlockingIOError:
+                fsock.shutdown(socket.SHUT_WR)
+            except OSError:
                 pass
-
-            # Bring back timeout to detect when send buffer is full
-            # and avoid blocking on send (which would block the
-            # forward thread)
-            fsock.settimeout(self.conf.forwardtimeout)
-
-            # send data to growatt
-            fsock.sendall(data)
-
-            if self.verbose:
-                pr(f"- GrottServer - Forward data sent to {host}:{port}")
-        except OSError as exc:
-            # if forward fails, close connection and require reconnect
-            if isinstance(fsock, socket.socket):
-                try:
-                    fsock.shutdown(socket.SHUT_WR)
-                except OSError:
-                    pass
-            self.forward_input = (None, host, port)
-
-            if attempts >= self.conf.forwardretry:
-                pr(f"- GrottServer - Forward failed: {host}:{port} ({exc})")
-                return
-
-            self.forward_data_op(data=data, attempts=attempts + 1)
 
     def close_connection(self):
         pr(
