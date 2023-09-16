@@ -17,7 +17,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from time import sleep
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 import libscrc
@@ -938,7 +938,9 @@ class GrottServerHandler(StreamRequestHandler):
                 tev.set()
 
     def forward_data(self):
-        def op(fsock, host, port, data, attempts=self.conf.forwardretry):
+        def op(
+            fsock, host, port, data, attempts=self.conf.forwardretry
+        ) -> Optional[socket.socket]:
             try:
                 if not isinstance(fsock, socket.socket):
                     fsock = Forward().start(host, port)
@@ -969,6 +971,8 @@ class GrottServerHandler(StreamRequestHandler):
 
                 if self.verbose:
                     pr(f"- GrottServer - Forward data sent to {host}:{port}")
+
+                return fsock
             except OSError as exc:
                 # if forward fails, close connection and require reconnect
                 if isinstance(fsock, socket.socket):
@@ -979,7 +983,7 @@ class GrottServerHandler(StreamRequestHandler):
 
                 if attempts < 0:
                     pr(f"- GrottServer - Forward failed: {host}:{port} ({exc})")
-                    return
+                    return None
 
                 pr(
                     f"- GrottServer - Forward failed: {host}:{port} ({exc}), retrying..."
