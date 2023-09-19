@@ -1,7 +1,7 @@
 """
 grottserver.py emulates the server.growatt.com website and was initial developed
 for debugging and testing grott.
-Updated: 2023-09-04
+Updated: 2023-09-19
 """
 
 import codecs
@@ -28,7 +28,7 @@ from grotthelpers import (Forward, decrypt, format_multi_line, pr, queue_clear,
                           queue_clear_and_poison)
 
 # Version:
-verrel = "0.0.14d"
+verrel = "0.0.14e"
 
 # Constant responses:
 INVALID_DATALOGGER_ID = (
