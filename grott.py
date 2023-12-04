@@ -9,7 +9,7 @@ Grott Growatt monitor based on TCPIP sniffing or proxy (new 2.0)
     * Monitor can run in forground and as a standard service!
     * For version history see: version_history.txt
 
-Updated: 2023-03-17
+Updated: 2023-12-04
 """
 
 
@@ -21,7 +21,7 @@ from grottproxy import Proxy
 from grottserver import Server
 from grottsniffer import Sniff
 
-VERREL = "2.8.2"
+VERREL = "2.8.3"
 
 
 def main():

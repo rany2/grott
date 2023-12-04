@@ -1,7 +1,7 @@
 """
 grottconf  process command parameter and settings file
-Updated: 2023-03-17
-Version 2.8.2
+Updated: 2023-12-04
+Version 2.8.3
 """
 
 import argparse
@@ -1356,8 +1356,8 @@ class Conf:
             "totworktime"       : {"value" : 346,"length" : 4,"type" : "num","divide" : 7200},
             "pvenergytoday"     : {"value" : 354,"length" : 4,"type" : "num","divide" : 10},
             "pvenergytotal"     : {"value" : 362,"length" : 4,"type" : "num","divide" : 10},
-            "epvtotal "         : {"value" : 370,"length" : 4,"type" : "num","divide" : 10},
-            "epv1today "        : {"value" : 378,"length" : 4,"type" : "num","divide" : 10},
+            "epvtotal"         : {"value" : 370,"length" : 4,"type" : "num","divide" : 10},
+            "epv1today"        : {"value" : 378,"length" : 4,"type" : "num","divide" : 10},
             "epv1total"         : {"value" : 386,"length" : 4,"type" : "num","divide" : 10},
             "epv2today"         : {"value" : 394,"length" : 4,"type" : "num","divide" : 10},
             "epv2total"         : {"value" : 402,"length" : 4,"type" : "num","divide" : 10},
@@ -1461,7 +1461,7 @@ class Conf:
             "bms_warninfo"       : {"value" : 1022,"length" : 2,"type" : "num","divide" : 1},
             "bms_soc"            : {"value" : 1026,"length" : 2,"type" : "num","divide" : 1},
             "bms_batteryvolt"    : {"value" : 1030,"length" : 2,"type" : "num","divide" : 100},
-            "bms_batterycurr"    : {"value" : 1034,"length" : 2,"type" : "num","divide" : 100},
+            "bms_batterycurr"    : {"value" : 1034,"length" : 2,"type" : "numx","divide" : 100},
             "bms_batterytemp"    : {"value" : 1038,"length" : 2,"type" : "num","divide" : 10},
             "bms_maxcurr"        : {"value" : 1042,"length" : 2,"type" : "num","divide" : 100},
             "bms_deltavolt"      : {"value" : 1046,"length" : 2,"type" : "num","divide" : 100},
