@@ -1,8 +1,13 @@
-FROM python:3.8-slim
+ARG ARCH=
+FROM ${ARCH}python:3.8-alpine
 
 # Install required python packages 
 COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
+RUN apk add --no-cache --virtual .build-deps \
+        gcc \
+        musl-dev && \
+    pip install -r /app/requirements.txt && \
+    apk del --purge .build-deps
 
 # Copy Grott files here
 COPY static /app/static
