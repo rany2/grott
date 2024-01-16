@@ -58,7 +58,7 @@ The program is written in python and runs under Linux, Windows.
 It can run:
 * Interactive from the command line interface
 * As a Linux or Windows service
-* As a [Docker container](https://github.com/johanmeijer/grott/wiki/Docker-support).  
+* As a [Docker container](https://github.com/johanmeijer/grott/wiki/Docker-support), use `ghcr.io/rany2/grott:master` for this fork.  
 
 And is tested, but not limited to, inverter models:
 + 1500-S (ShineWiFi)
@@ -84,9 +84,9 @@ Please see the [Wiki](https://github.com/johanmeijer/grott/wiki) for further inf
 ## What's new
 ### New in Version 2.6.1  (Master)
 #### TL3-X 3 phase inverter support 
-see issue https://github.com/johanmeijer/grott/issues/81/https://github.com/johanmeijer/grott/issues/82/https://github.com/johanmeijer/grott/issues/85: add invtype=tl3 in grott.ini [Generic] section (or use ginvtype="tl3" environmental variable e.g. for docker ledidome/grott:2.6.1f)
+see issue https://github.com/johanmeijer/grott/issues/81/ https://github.com/johanmeijer/grott/issues/82/ https://github.com/johanmeijer/grott/issues/85: add invtype=tl3 in grott.ini [Generic] section (or use ginvtype="tl3" environmental variable e.g. for docker ledidome/grott:2.6.1f)
 #### SPF off grid inverter support 
-see issue https://github.com/johanmeijer/grott/issues/42/https://github.com/johanmeijer/grott/issues/46: add invtype=spf in grott.ini [Generic] section (or use ginvtype=spf environmental variable e.g. for docker)
+see issue https://github.com/johanmeijer/grott/issues/42/ https://github.com/johanmeijer/grott/issues/46: add invtype=spf in grott.ini [Generic] section (or use ginvtype=spf environmental variable e.g. for docker)
 #### SPH hybrid (grid/battery) support 
 see issue https://github.com/johanmeijer/grott/issues/34: add invtype=sph in grott.ini [Generic] section (or use ginvtype=sph environmental variable e.g. for docker)
 #### Growatt Smart Meter support
@@ -133,7 +133,7 @@ Limited .ini configuration needed (inverterid, encryption, offset and record lay
 #### Direct output to PVOutput.org (no mqtt processing needed). 
 Specify pvoutput = True and apikey and systemid in .ini file to enable it. 
 #### Docker support 
-2 docker containers are created ledidobe/grottrpi (specific old RPI with ARM32) and ledidobe/grott (generic one, tested on synology NAS and Ubuntu). See https://hub.docker.com/search?q=ledidobe&type=image. 
+2 docker containers are created (`ghcr.io/rany2/grott:master`)
 See issue 4 and 15 on how to use it (wiki will be updated soon)
 #### Use date/time from data record
 If date/time is available in the data (inserted by the inverter) this will be used. In this way buffered records will be sent with the original  creation time (in the past). 

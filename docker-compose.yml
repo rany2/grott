@@ -2,8 +2,7 @@ version: '3.3'
 services:
     grott:
         #network_mode: host
-        #image: ledidobe/grott
-        image: ledidobe/grott
+        image: ghcr.io/rany2/grott:master
         container_name: grott
         restart: unless-stopped
         ports:
